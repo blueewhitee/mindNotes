@@ -5,7 +5,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai"
 
 // Initialize Google Generative AI client
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY || "");
-// Update to use the correct model name - gemini-2.0-flash is more commonly used and reliable
+// Use gemini-2.0-flash consistently for all requests
 const geminiModel = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
 // Initialize Redis client for rate limiting and caching
@@ -193,7 +193,7 @@ async function generateSummaryWithGemini(content: string): Promise<string> {
 
     // Add timeout to prevent hanging
     const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error("Gemini API request timed out")), 15000); // 15 second timeout
+      setTimeout(() => reject(new Error("Gemini API request timed out")), 20000); // 20 second timeout for both functions
     });
 
     const apiPromise = geminiModel.generateContent(prompt);
@@ -274,7 +274,7 @@ async function generateConceptMapWithGemini(content: string) {
 
     // Add timeout to prevent hanging
     const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error("Gemini API request timed out")), 30000); // Increase to 30 second timeout
+      setTimeout(() => reject(new Error("Gemini API request timed out")), 20000); // 20 second timeout for both functions
     });
 
     const apiPromise = geminiModel.generateContent(prompt);
