@@ -1,11 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import type { Note } from "@/lib/types/database.types"
 import { formatDate, truncateText } from "@/lib/utils"
 import { useNotes } from "@/lib/hooks/use-notes"
+import { useIsMobile } from "@/components/ui/use-mobile"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import {
@@ -41,6 +42,7 @@ export function NoteCard({ note }: NoteCardProps) {
   const { deleteNote, archiveNote } = useNotes()
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [isHovered, setIsHovered] = useState(false)
+  const isMobile = useIsMobile()
 
   const handleDelete = async () => {
     await deleteNote.mutateAsync(note.id)
@@ -52,13 +54,16 @@ export function NoteCard({ note }: NoteCardProps) {
   }
 
   // Determine card content based on what's available
-  const displayContent = note.content ? truncateText(note.content, isHovered ? 300 : 150) : "No content"
+  // Show more content on hover for desktop, but keep it shorter on mobile regardless
+  const displayContent = note.content 
+    ? truncateText(note.content, isHovered && !isMobile ? 300 : 150) 
+    : "No content"
 
   return (
     <>
       <Card 
         className={`relative flex h-full flex-col transition-all duration-300 ${
-          isHovered ? 'scale-[1.03] shadow-lg z-10' : 'hover:shadow-md'
+          isHovered && !isMobile ? 'scale-[1.03] shadow-lg z-10' : 'hover:shadow-md'
         }`}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
@@ -103,12 +108,12 @@ export function NoteCard({ note }: NoteCardProps) {
         <CardContent className="flex-1">
           <p className="text-sm text-muted-foreground">{displayContent}</p>
           
-          {/* Summary section that appears on hover */}
-          {isHovered && note.summary && (
+          {/* Summary section that appears on hover for desktop, always visible on mobile */}
+          {(isHovered || isMobile) && note.summary && (
             <div className="mt-4 border-t pt-3 animate-fadeIn">
               <div className="flex items-center gap-2 mb-1">
                 <FileText className="h-4 w-4 text-blue-500" />
-                <h4 className="font-medium text-sm">AI Summary</h4>
+                <h4 className="font-medium text-sm">Summary</h4>
               </div>
               <p className="text-xs text-muted-foreground">{note.summary}</p>
             </div>

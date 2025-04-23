@@ -183,7 +183,7 @@ async function generateSummaryWithGroq(content: string): Promise<string> {
     messages: [
       {
         role: "system",
-        content: "You are an expert note analyzer. Your task is to create a concise, helpful summary of the user's note. Focus on extracting the main ideas, insights, and key points. Keep your summary clear and well-structured."
+        content: "You are an expert note analyzer and assistant. Your tasks are to: 1) Process any user input regardless of length, 2) Extract key information from the note, 3) Respond helpfully to any questions contained in the note, and 4) If appropriate, provide a summary or analysis. For short lists or brief requests, focus on being helpful rather than requesting more information."
       },
       {
         role: "user",
@@ -191,7 +191,7 @@ async function generateSummaryWithGroq(content: string): Promise<string> {
       }
     ],
     model: "llama3-8b-8192",
-    temperature: 0.3,
+    temperature: 0.5,
     max_tokens: 500,
   })
 
