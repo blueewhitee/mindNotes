@@ -84,9 +84,9 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
     // Only run auto-summarize if we have significant content
     if (content && content.trim().length > 50) {
       console.log("Auto-summarizing content:", content.substring(0, 30) + "...");
-      autoSummarize(content);
+      autoSummarize(content, noteId); // Pass the noteId parameter to fix the UUID error
     }
-  }, [content, autoSummarize]);
+  }, [content, autoSummarize, noteId]);
 
   // Watch for summary changes and immediately save them
   useEffect(() => {
@@ -277,7 +277,7 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
         </div>
         <Button onClick={handleAnalyze} disabled={isAnalyzing || !content.trim()}>
           <Sparkles className="mr-2 h-4 w-4" />
-          AI Analyze
+          AI Summarize
         </Button>
       </div>
       

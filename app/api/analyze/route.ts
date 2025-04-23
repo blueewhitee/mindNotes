@@ -1,12 +1,11 @@
 import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
-import Groq from "groq-sdk"
 import { Redis } from "@upstash/redis"
+import { GoogleGenerativeAI } from "@google/generative-ai"
 
-// Initialize Groq client with your API key
-const groq = new Groq({ 
-  apiKey: process.env.GROQ_API_KEY 
-})
+// Initialize Google Generative AI client
+const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY || "");
+const geminiModel = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
 // Initialize Redis client for rate limiting and caching
 const redis = process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
@@ -130,9 +129,9 @@ export async function POST(request: Request) {
     }
 
     try {
-      // Generate both text summary and graph data using Groq
-      const summary = await generateSummaryWithGroq(content)
-      const graphData = await generateConceptMapWithGroq(content)
+      // Generate both text summary and graph data using Gemini
+      const summary = await generateSummaryWithGemini(content)
+      const graphData = await generateConceptMapWithGemini(content)
       
       const responseData = JSON.stringify({ summary, graphData })
       
@@ -152,9 +151,9 @@ export async function POST(request: Request) {
         },
       })
     } catch (aiError) {
-      console.error("Error calling Groq API:", aiError)
+      console.error("Error calling Gemini API:", aiError)
       
-      // Fallback to simulated responses if Groq fails
+      // Fallback to simulated responses if Gemini fails
       const summary = simulateAISummary(content)
       const graphData = generateKnowledgeGraph(content)
       
@@ -178,27 +177,18 @@ export async function POST(request: Request) {
   }
 }
 
-async function generateSummaryWithGroq(content: string): Promise<string> {
-  const response = await groq.chat.completions.create({
-    messages: [
-      {
-        role: "system",
-        content: "You are an expert note analyzer and assistant. Your tasks are to: 1) Process any user input regardless of length, 2) Extract key information from the note, 3) Respond helpfully to any questions contained in the note, and 4) If appropriate, provide a summary or analysis. For short lists or brief requests, focus on being helpful rather than requesting more information."
-      },
-      {
-        role: "user",
-        content: `Please analyze and summarize the following note content:\n\n${content}`
-      }
-    ],
-    model: "llama3-8b-8192",
-    temperature: 0.5,
-    max_tokens: 500,
-  })
+async function generateSummaryWithGemini(content: string): Promise<string> {
+  const prompt = `You are an expert note summarizer. Your task is to read user-provided notes and generate concise, informative summaries that capture the key points and main ideas. Focus on extracting the most important information, identifying the core topics discussed, and presenting them clearly and understandably. The response should be the summary itself, starting immediately with the most salient information. Aim for brevity while retaining essential details and context. Do not include personal opinions or information not explicitly present in the note. The summary should be self-contained and accurately reflect the content of the original note.
+  ${content}`;
 
-  return response.choices[0].message.content || "Unable to generate summary."
+  const result = await geminiModel.generateContent(prompt);
+  const response = await result.response;
+  const text = response.text();
+  
+  return text || "Unable to generate summary.";
 }
 
-async function generateConceptMapWithGroq(content: string) {
+async function generateConceptMapWithGemini(content: string) {
   const prompt = `
   Analyze the following note content and extract:
   1. Main concepts (5-10 key ideas)
@@ -233,19 +223,12 @@ async function generateConceptMapWithGroq(content: string) {
   Only respond with valid JSON. No explanations or additional text.
   `;
 
-  const response = await groq.chat.completions.create({
-    messages: [
-      { role: "user", content: prompt }
-    ],
-    model: "llama3-8b-8192",
-    temperature: 0.2,
-    max_tokens: 1500,
-    response_format: { type: "json_object" }
-  });
-  
   try {
-    const responseText = response.choices[0].message.content || "";
-    return JSON.parse(responseText);
+    const result = await geminiModel.generateContent(prompt);
+    const response = await result.response;
+    const text = response.text();
+    
+    return JSON.parse(text);
   } catch (error) {
     console.error("Error parsing concept map JSON:", error);
     // Fallback to simulated data

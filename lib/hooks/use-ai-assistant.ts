@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef } from "react"
 import { toast } from "@/components/ui/use-toast"
 import { ConceptMapData } from "@/components/notes/concept-map"
-import { createClient } from "@supabase/supabase-js"
+import { createClient } from "@/lib/supabase/client"
 
 export function useAIAssistant() {
   const [isAnalyzing, setIsAnalyzing] = useState(false)
@@ -65,7 +65,7 @@ export function useAIAssistant() {
   }
 
   // Automatic summarization with debouncing
-  const autoSummarize = useCallback((content: string) => {
+  const autoSummarize = useCallback((content: string, noteId: string) => {
     // Clear any existing timeout
     if (autoSummaryTimeoutRef.current) {
       clearTimeout(autoSummaryTimeoutRef.current)
@@ -103,7 +103,7 @@ export function useAIAssistant() {
               summary: data.summary,
               updated_at: new Date().toISOString()
             })
-            .eq("id", content.substring(0, 50)) // This will be replaced with actual note ID
+            .eq("id", noteId) // Now using the proper noteId parameter
             .select()
             .single()
             
@@ -123,7 +123,7 @@ export function useAIAssistant() {
         autoSummaryTimeoutRef.current = null
       }
     }, 2000) // 2 second debounce
-  }, [fetchAnalysis])
+  }, [])
 
   const resetAnalysis = () => {
     setSummary(null)
