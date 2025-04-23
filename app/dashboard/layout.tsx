@@ -1,7 +1,6 @@
 import type React from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { DashboardHeader } from "@/components/layout/dashboard-header";
 
 export const dynamic = 'force-dynamic';
 
@@ -22,7 +21,6 @@ export default async function DashboardLayout({
 
   return (
     <div className="flex min-h-screen flex-col">
-      <DashboardHeader user={session.user} />
       <main className="flex-1">{children}</main>
     </div>
   );
