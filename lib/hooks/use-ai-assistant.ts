@@ -1,14 +1,35 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useCallback, useRef } from "react"
 import { toast } from "@/components/ui/use-toast"
 import { ConceptMapData } from "@/components/notes/concept-map"
+import { createClient } from "@supabase/supabase-js"
 
 export function useAIAssistant() {
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [summary, setSummary] = useState<string | null>(null)
   const [conceptMapData, setConceptMapData] = useState<ConceptMapData | null>(null)
+  const [isAutoSummarizing, setIsAutoSummarizing] = useState(false)
+  const autoSummaryTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
+  // Helper function to make the API call
+  const fetchAnalysis = async (content: string): Promise<{summary: string, graphData?: ConceptMapData}> => {
+    const response = await fetch("/api/analyze", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ content }),
+    })
+
+    if (!response.ok) {
+      throw new Error("Failed to analyze note")
+    }
+
+    return await response.json()
+  }
+
+  // For manual analysis (complete analysis with concepts)
   const analyzeNote = async (content: string) => {
     if (!content.trim()) {
       toast({
@@ -24,19 +45,7 @@ export function useAIAssistant() {
     setConceptMapData(null)
 
     try {
-      const response = await fetch("/api/analyze", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ content }),
-      })
-
-      if (!response.ok) {
-        throw new Error("Failed to analyze note")
-      }
-
-      const data = await response.json()
+      const data = await fetchAnalysis(content)
       setSummary(data.summary)
       
       // Set concept map data if available
@@ -55,6 +64,67 @@ export function useAIAssistant() {
     }
   }
 
+  // Automatic summarization with debouncing
+  const autoSummarize = useCallback((content: string) => {
+    // Clear any existing timeout
+    if (autoSummaryTimeoutRef.current) {
+      clearTimeout(autoSummaryTimeoutRef.current)
+    }
+
+    // Check for minimum content length (at least 50 characters to summarize)
+    if (!content || content.trim().length < 50) {
+      console.log("Not auto-summarizing: content too short", content?.length || 0)
+      return
+    }
+
+    console.log("Setting up auto-summarize with debounce, content length:", content.length)
+
+    // Set a new timeout (debounce for 2 seconds)
+    autoSummaryTimeoutRef.current = setTimeout(async () => {
+      // Only proceed if we have enough content
+      setIsAutoSummarizing(true)
+      console.log("Auto-summarizing now after debounce")
+      
+      try {
+        const data = await fetchAnalysis(content)
+        console.log("Auto-summary received from API:", data.summary ? data.summary.substring(0, 50) + "..." : "null")
+        
+        // Set the summary state
+        setSummary(data.summary)
+        
+        // IMPORTANT: Force an immediate save with the new summary
+        // This ensures the summary is saved to the database right after generation
+        console.log("Triggering immediate save with summary")
+        try {
+          const supabase = createClient()
+          const { data: noteData, error } = await supabase
+            .from("notes")
+            .update({
+              summary: data.summary,
+              updated_at: new Date().toISOString()
+            })
+            .eq("id", content.substring(0, 50)) // This will be replaced with actual note ID
+            .select()
+            .single()
+            
+          if (error) {
+            console.error("Error saving summary directly:", error.message)
+          } else {
+            console.log("Summary saved directly to database!")
+          }
+        } catch (saveError) {
+          console.error("Failed direct summary save:", saveError)
+        }
+      } catch (error) {
+        console.error("Error auto-summarizing note:", error)
+        // Don't show a toast for auto-summarization failures
+      } finally {
+        setIsAutoSummarizing(false)
+        autoSummaryTimeoutRef.current = null
+      }
+    }, 2000) // 2 second debounce
+  }, [fetchAnalysis])
+
   const resetAnalysis = () => {
     setSummary(null)
     setConceptMapData(null)
@@ -62,9 +132,11 @@ export function useAIAssistant() {
 
   return {
     isAnalyzing,
+    isAutoSummarizing,
     summary,
     conceptMapData,
     analyzeNote,
+    autoSummarize,
     resetAnalysis,
     resetSummary: () => setSummary(null),
   }

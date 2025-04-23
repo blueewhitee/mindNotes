@@ -9,15 +9,17 @@ export interface Database {
           user_id: string
           title: string
           content: string | null
+          summary: string | null
           is_archived: boolean
           created_at: string
           updated_at: string
         }
         Insert: {
           id?: string
-          user_id: string
-          title: string
+          user_id?: string
+          title?: string
           content?: string | null
+          summary?: string | null
           is_archived?: boolean
           created_at?: string
           updated_at?: string
@@ -27,6 +29,7 @@ export interface Database {
           user_id?: string
           title?: string
           content?: string | null
+          summary?: string | null
           is_archived?: boolean
           created_at?: string
           updated_at?: string

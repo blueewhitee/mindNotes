@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
-import { ArrowLeft, Loader2, Sparkles, CheckCircle } from "lucide-react"
+import { ArrowLeft, Loader2, Sparkles, CheckCircle, FileText } from "lucide-react"
 import { toast } from "@/components/ui/use-toast"
 import { ConceptMap } from "@/components/notes/concept-map"
 
@@ -22,7 +22,15 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
   const router = useRouter()
   const { note, isLoading } = useNote(noteId)
   const { updateNote } = useNotes()
-  const { isAnalyzing, summary, conceptMapData, analyzeNote, resetAnalysis } = useAIAssistant()
+  const { 
+    isAnalyzing, 
+    isAutoSummarizing,
+    summary, 
+    conceptMapData, 
+    analyzeNote, 
+    autoSummarize,
+    resetAnalysis 
+  } = useAIAssistant()
   
   // Analysis view mode (text or visual)
   const [analysisView, setAnalysisView] = useState<'text' | 'visual'>('text')
@@ -71,6 +79,65 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
     }
   }, [title, content]);
 
+  // Automatically start summarizing when content changes
+  useEffect(() => {
+    // Only run auto-summarize if we have significant content
+    if (content && content.trim().length > 50) {
+      console.log("Auto-summarizing content:", content.substring(0, 30) + "...");
+      autoSummarize(content);
+    }
+  }, [content, autoSummarize]);
+
+  // Watch for summary changes and immediately save them
+  useEffect(() => {
+    // Don't trigger on initial load or when summarizing
+    if (!initializedRef.current || !note || isAutoSummarizing || !summary) return;
+    
+    console.log("Summary changed, triggering immediate save:", summary ? summary.substring(0, 30) + "..." : "null");
+    
+    const saveSummaryOnly = async () => {
+      if (savingRef.current) {
+        console.log("Already saving, will include summary in ongoing save");
+        return;
+      }
+      
+      // Use refs to track saving state
+      savingRef.current = true;
+      setIsSaving(true);
+      
+      try {
+        console.log("Saving summary immediately to database");
+        const updatedNote = await updateNote.mutateAsync({
+          id: noteId,
+          summary: summary
+        });
+        
+        console.log("Summary saved result:", updatedNote.id, "Has summary:", !!updatedNote.summary);
+        
+        // Show success indicator
+        setSaveSuccess(true);
+        
+        // Clear any existing timeout
+        if (successTimeoutRef.current) {
+          clearTimeout(successTimeoutRef.current);
+        }
+        
+        // Set timeout to hide success message
+        successTimeoutRef.current = setTimeout(() => {
+          setSaveSuccess(false);
+          successTimeoutRef.current = null;
+        }, 2000);
+      } catch (error) {
+        console.error("Error saving summary:", error);
+      } finally {
+        savingRef.current = false;
+        setIsSaving(false);
+      }
+    };
+    
+    saveSummaryOnly();
+  }, [summary, note, noteId, updateNote, isAutoSummarizing]);
+
   // Handle debounced content saving
   useEffect(() => {
     // Skip if component isn't initialized yet
@@ -101,11 +168,18 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
       setIsSaving(true);
       
       try {
+        // Log the summary being saved for debugging
+        console.log("Saving note with summary:", summary ? summary.substring(0, 30) + "..." : "null");
+        
+        // Include the current summary in the note update if available
         const updatedNote = await updateNote.mutateAsync({
           id: noteId,
           title: debouncedTitle,
           content: debouncedContent,
+          summary: summary // Include the AI-generated summary
         });
+        
+        console.log("Note updated result:", updatedNote.id, "Has summary:", !!updatedNote.summary);
         
         // Update original values using refs
         originalTitleRef.current = updatedNote.title || "";
@@ -146,7 +220,7 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
         clearTimeout(successTimeoutRef.current);
       }
     };
-  }, [debouncedTitle, debouncedContent, noteId, updateNote]);
+  }, [debouncedTitle, debouncedContent, noteId, updateNote, summary]);
 
   const handleAnalyze = () => {
     analyzeNote(content);
@@ -182,10 +256,22 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
               Saving...
             </div>
           )}
-          {saveSuccess && !isSaving && (
+          {isAutoSummarizing && !isSaving && (
+            <div className="flex items-center text-xs text-blue-500">
+              <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+              Summarizing...
+            </div>
+          )}
+          {saveSuccess && !isSaving && !isAutoSummarizing && (
             <div className="flex items-center text-xs text-green-500">
               <CheckCircle className="mr-1 h-3 w-3" />
               Saved
+            </div>
+          )}
+          {summary && !isAutoSummarizing && !isSaving && !saveSuccess && (
+            <div className="flex items-center text-xs text-blue-500">
+              <FileText className="mr-1 h-3 w-3" />
+              Summary Ready
             </div>
           )}
         </div>
@@ -194,6 +280,8 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
           AI Analyze
         </Button>
       </div>
+      
+      {/* Rest of the component remains the same */}
       <div className="flex-1 overflow-auto p-4">
         <Textarea
           value={content}

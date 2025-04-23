@@ -1,11 +1,26 @@
 import { createClient } from "@/lib/supabase/server"
 import { NextResponse } from "next/server"
 import Groq from "groq-sdk"
+import { Redis } from "@upstash/redis"
 
 // Initialize Groq client with your API key
 const groq = new Groq({ 
   apiKey: process.env.GROQ_API_KEY 
 })
+
+// Initialize Redis client for rate limiting and caching
+const redis = process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
+  ? new Redis({
+      url: process.env.UPSTASH_REDIS_REST_URL,
+      token: process.env.UPSTASH_REDIS_REST_TOKEN,
+    })
+  : null
+
+// Rate limit settings
+const MAX_REQUESTS_PER_USER = 10 // Max requests per hour
+const WINDOW_DURATION = 60 * 60 // 1 hour in seconds
+const MAX_CONTENT_LENGTH = 10000 // Max characters to process
+const MINIMUM_REQUEST_INTERVAL = 10 // Minimum seconds between requests
 
 export async function POST(request: Request) {
   try {
@@ -26,6 +41,8 @@ export async function POST(request: Request) {
       })
     }
 
+    const userId = session.user.id
+
     // Extract the content from the request body
     const { content } = await request.json()
 
@@ -36,14 +53,103 @@ export async function POST(request: Request) {
       })
     }
 
+    // Check content length
+    if (content.length > MAX_CONTENT_LENGTH) {
+      return new NextResponse(JSON.stringify({ 
+        error: `Content too large. Maximum ${MAX_CONTENT_LENGTH} characters allowed.` 
+      }), {
+        status: 413, // Payload Too Large
+        headers: { "Content-Type": "application/json" },
+      })
+    }
+
+    // Rate limiting and caching logic
+    if (redis) {
+      // 1. Check for rate limiting
+      const requestCountKey = `user:${userId}:request_count`
+      const requestCount = await redis.get(requestCountKey) || 0
+      
+      if (Number(requestCount) >= MAX_REQUESTS_PER_USER) {
+        return new NextResponse(JSON.stringify({ 
+          error: "Rate limit exceeded. Try again later.",
+          retryAfter: WINDOW_DURATION
+        }), {
+          status: 429, // Too Many Requests
+          headers: { 
+            "Content-Type": "application/json",
+            "Retry-After": WINDOW_DURATION.toString()
+          },
+        })
+      }
+      
+      // 2. Check for minimum interval between requests
+      const lastRequestTimeKey = `user:${userId}:last_request_time`
+      const lastRequestTime = await redis.get(lastRequestTimeKey) || 0
+      const currentTime = Math.floor(Date.now() / 1000)
+      
+      if (currentTime - Number(lastRequestTime) < MINIMUM_REQUEST_INTERVAL) {
+        return new NextResponse(JSON.stringify({ 
+          error: "Please wait before making another request",
+          retryAfter: MINIMUM_REQUEST_INTERVAL - (currentTime - Number(lastRequestTime))
+        }), {
+          status: 429,
+          headers: { 
+            "Content-Type": "application/json",
+            "Retry-After": (MINIMUM_REQUEST_INTERVAL - (currentTime - Number(lastRequestTime))).toString()
+          },
+        })
+      }
+      
+      // Update last request time
+      await redis.set(lastRequestTimeKey, currentTime)
+      
+      // 3. Check cache for existing content summary
+      // Create a content hash for lookup (first 100 chars + length is a good balance)
+      const contentHash = Buffer.from(content.substring(0, 100) + content.length.toString()).toString('base64')
+      const cacheKey = `summary:${contentHash}`
+      
+      const cachedResult = await redis.get(cacheKey)
+      if (cachedResult) {
+        console.log("Cache hit for content summary")
+        // Increment the request count for rate limiting
+        await redis.incr(requestCountKey)
+        await redis.expire(requestCountKey, WINDOW_DURATION)
+        
+        return new NextResponse(cachedResult as string, {
+          status: 200,
+          headers: { 
+            "Content-Type": "application/json",
+            "X-Cache": "HIT"
+          },
+        })
+      }
+      
+      // Increment the request count for rate limiting
+      await redis.incr(requestCountKey)
+      await redis.expire(requestCountKey, WINDOW_DURATION)
+    }
+
     try {
       // Generate both text summary and graph data using Groq
       const summary = await generateSummaryWithGroq(content)
       const graphData = await generateConceptMapWithGroq(content)
+      
+      const responseData = JSON.stringify({ summary, graphData })
+      
+      // Store in cache if Redis is available
+      if (redis) {
+        const contentHash = Buffer.from(content.substring(0, 100) + content.length.toString()).toString('base64')
+        const cacheKey = `summary:${contentHash}`
+        // Cache result for 24 hours
+        await redis.set(cacheKey, responseData, { ex: 24 * 60 * 60 })
+      }
 
-      return new NextResponse(JSON.stringify({ summary, graphData }), {
+      return new NextResponse(responseData, {
         status: 200,
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "X-Cache": "MISS"
+        },
       })
     } catch (aiError) {
       console.error("Error calling Groq API:", aiError)
@@ -52,11 +158,13 @@ export async function POST(request: Request) {
       const summary = simulateAISummary(content)
       const graphData = generateKnowledgeGraph(content)
       
-      return new NextResponse(JSON.stringify({ 
+      const responseData = JSON.stringify({ 
         summary, 
         graphData,
         notice: "Using simulated analysis due to API error"
-      }), {
+      })
+      
+      return new NextResponse(responseData, {
         status: 200,
         headers: { "Content-Type": "application/json" },
       })

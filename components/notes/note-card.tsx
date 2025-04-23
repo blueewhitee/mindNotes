@@ -25,7 +25,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Archive, MoreVertical, Trash } from "lucide-react"
+import { 
+  Archive, 
+  MoreVertical, 
+  Trash, 
+  FileText 
+} from "lucide-react"
 
 interface NoteCardProps {
   note: Note
@@ -35,6 +40,7 @@ export function NoteCard({ note }: NoteCardProps) {
   const router = useRouter()
   const { deleteNote, archiveNote } = useNotes()
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [isHovered, setIsHovered] = useState(false)
 
   const handleDelete = async () => {
     await deleteNote.mutateAsync(note.id)
@@ -45,43 +51,68 @@ export function NoteCard({ note }: NoteCardProps) {
     await archiveNote.mutateAsync(note.id)
   }
 
+  // Determine card content based on what's available
+  const displayContent = note.content ? truncateText(note.content, isHovered ? 300 : 150) : "No content"
+
   return (
     <>
-      <Card className="flex h-full flex-col">
+      <Card 
+        className={`relative flex h-full flex-col transition-all duration-300 ${
+          isHovered ? 'scale-[1.03] shadow-lg z-10' : 'hover:shadow-md'
+        }`}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+      >
         <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
           <CardTitle className="text-lg font-medium">
             <Link href={`/dashboard/note/${note.id}`} className="hover:underline">
               {truncateText(note.title, 50)}
             </Link>
           </CardTitle>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-8 w-8 p-0">
-                <span className="sr-only">Open menu</span>
-                <MoreVertical className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => router.push(`/dashboard/note/${note.id}`)}>Edit</DropdownMenuItem>
-              <DropdownMenuItem onClick={handleArchive}>
-                <Archive className="mr-2 h-4 w-4" />
-                Archive
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="text-destructive focus:text-destructive"
-                onClick={() => setShowDeleteDialog(true)}
-              >
-                <Trash className="mr-2 h-4 w-4" />
-                Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <div className="flex items-center gap-1">
+            {note.summary && (
+              <span className="text-blue-500">
+                <FileText className="h-3.5 w-3.5" />
+              </span>
+            )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="h-8 w-8 p-0">
+                  <span className="sr-only">Open menu</span>
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => router.push(`/dashboard/note/${note.id}`)}>Edit</DropdownMenuItem>
+                <DropdownMenuItem onClick={handleArchive}>
+                  <Archive className="mr-2 h-4 w-4" />
+                  Archive
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className="text-destructive focus:text-destructive"
+                  onClick={() => setShowDeleteDialog(true)}
+                >
+                  <Trash className="mr-2 h-4 w-4" />
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </CardHeader>
         <CardContent className="flex-1">
-          <p className="text-sm text-muted-foreground">
-            {note.content ? truncateText(note.content, 150) : "No content"}
-          </p>
+          <p className="text-sm text-muted-foreground">{displayContent}</p>
+          
+          {/* Summary section that appears on hover */}
+          {isHovered && note.summary && (
+            <div className="mt-4 border-t pt-3 animate-fadeIn">
+              <div className="flex items-center gap-2 mb-1">
+                <FileText className="h-4 w-4 text-blue-500" />
+                <h4 className="font-medium text-sm">AI Summary</h4>
+              </div>
+              <p className="text-xs text-muted-foreground">{note.summary}</p>
+            </div>
+          )}
         </CardContent>
         <CardFooter className="pt-2">
           <p className="text-xs text-muted-foreground">Updated {formatDate(note.updated_at)}</p>

@@ -177,7 +177,7 @@ export function useNotes() {
   })
 
   const updateNote = useMutation({
-    mutationFn: async ({ id, title, content }: { id: string; title?: string; content?: string }) => {
+    mutationFn: async ({ id, title, content, summary }: { id: string; title?: string; content?: string; summary?: string | null }) => {
       // Authentication checks - similar to createNote
       if (isAuthLoading) {
         console.log("Auth is still loading when updating note, waiting...")
@@ -196,16 +196,34 @@ export function useNotes() {
         throw new Error("User not authenticated")
       }
 
-      console.log("Updating note for user:", user.id)
+      console.log("Updating note with the following data:", {
+        id,
+        titleLength: title?.length,
+        contentLength: content?.length,
+        summaryProvided: summary !== undefined,
+        summaryValue: summary ? `${summary.substring(0, 30)}...` : 'null'
+      })
 
       try {
+        // IMPORTANT: Build the update object differently to properly handle summary
+        let updateObject: any = {
+          updated_at: new Date().toISOString()
+        }
+        
+        if (title !== undefined) updateObject.title = title
+        if (content !== undefined) updateObject.content = content
+        
+        // Explicitly set summary even if null to ensure field is included in update
+        if (summary !== undefined) {
+          updateObject.summary = summary
+          console.log("Including summary in update:", summary ? `${summary.substring(0, 30)}...` : 'null')
+        }
+        
+        console.log("Final update object keys:", Object.keys(updateObject))
+        
         const { data, error } = await supabase
           .from("notes")
-          .update({
-            ...(title !== undefined && { title }),
-            ...(content !== undefined && { content }),
-            updated_at: new Date().toISOString() // Explicitly update the timestamp
-          })
+          .update(updateObject)
           .eq("id", id)
           .select()
           .single()
@@ -218,6 +236,12 @@ export function useNotes() {
         if (!data) {
           throw new Error("No data returned from note update")
         }
+        
+        console.log("Note updated successfully:", {
+          id: data.id,
+          hasSummary: !!data.summary,
+          summaryLength: data.summary?.length
+        })
 
         return data as Note
       } catch (err) {
