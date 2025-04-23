@@ -178,59 +178,118 @@ export async function POST(request: Request) {
 }
 
 async function generateSummaryWithGemini(content: string): Promise<string> {
-  const prompt = `You are an expert note summarizer. Your task is to read user-provided notes and generate concise, informative summaries that capture the key points and main ideas. Focus on extracting the most important information, identifying the core topics discussed, and presenting them clearly and understandably. The response should be the summary itself, starting immediately with the most salient information. Aim for brevity while retaining essential details and context. Do not include personal opinions or information not explicitly present in the note. The summary should be self-contained and accurately reflect the content of the original note.
-  ${content}`;
+  try {
+    // First check if we have a valid API key
+    if (!process.env.GOOGLE_AI_API_KEY) {
+      console.error("Missing Gemini API key - check your environment variables");
+      throw new Error("API key not configured properly");
+    }
 
-  const result = await geminiModel.generateContent(prompt);
-  const response = await result.response;
-  const text = response.text();
-  
-  return text || "Unable to generate summary.";
+    const prompt = `Summarize the following content with no fluff or introduction. Start immediately with the key points and main ideas. Focus on clarity, brevity, and core insights only.
+    ${content}`;
+
+    // Add timeout to prevent hanging
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error("Gemini API request timed out")), 15000); // 15 second timeout
+    });
+
+    const apiPromise = geminiModel.generateContent(prompt);
+    const result = await Promise.race([apiPromise, timeoutPromise]) as any;
+    
+    // Add debug logging
+    console.log("Gemini API response status:", result?.response ? "Success" : "No response");
+    
+    if (!result || !result.response) {
+      throw new Error("Empty response from Gemini API");
+    }
+    
+    const response = await result.response;
+    const text = response?.text();
+    
+    if (!text) {
+      throw new Error("No text in Gemini API response");
+    }
+    
+    return text;
+  } catch (error) {
+    // Detailed error logging
+    console.error("Gemini API error:", error);
+    throw error; // Re-throw so the caller knows there was an error
+  }
 }
 
 async function generateConceptMapWithGemini(content: string) {
-  const prompt = `
-  Analyze the following note content and extract:
-  1. Main concepts (5-10 key ideas)
-  2. Relationships between concepts
-  3. Theme categorization for concepts (technology, business, science, philosophy, personal, health)
-  4. Importance level for each concept (1-3, with 3 being most important)
-  
-  Format your response as a JSON object with exactly this structure:
-  {
-    "concepts": [
-      {
-        "id": "concept-1",
-        "label": "concept name",
-        "theme": "theme name",
-        "importance": 2
-      },
-      ...more concepts
-    ],
-    "relationships": [
-      {
-        "source": "concept-1",
-        "target": "concept-2", 
-        "label": "relationship description"
-      },
-      ...more relationships
-    ]
-  }
-
-  Note content to analyze:
-  ${content}
-  
-  Only respond with valid JSON. No explanations or additional text.
-  `;
-
   try {
-    const result = await geminiModel.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    // First check if we have a valid API key
+    if (!process.env.GOOGLE_AI_API_KEY) {
+      console.error("Missing Gemini API key - check your environment variables");
+      throw new Error("API key not configured properly");
+    }
+
+    const prompt = `
+    Analyze the following note content and extract:
+    1. Main concepts (5-10 key ideas)
+    2. Relationships between concepts
+    3. Theme categorization for concepts (technology, business, science, philosophy, personal, health)
+    4. Importance level for each concept (1-3, with 3 being most important)
     
-    return JSON.parse(text);
+    Format your response as a JSON object with exactly this structure:
+    {
+      "concepts": [
+        {
+          "id": "concept-1",
+          "label": "concept name",
+          "theme": "theme name",
+          "importance": 2
+        },
+        ...more concepts
+      ],
+      "relationships": [
+        {
+          "source": "concept-1",
+          "target": "concept-2", 
+          "label": "relationship description"
+        },
+        ...more relationships
+      ]
+    }
+
+    Note content to analyze:
+    ${content}
+    
+    Only respond with valid JSON. No explanations or additional text.
+    `;
+
+    // Add timeout to prevent hanging
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error("Gemini API request timed out")), 15000); // 15 second timeout
+    });
+
+    const apiPromise = geminiModel.generateContent(prompt);
+    const result = await Promise.race([apiPromise, timeoutPromise]) as any;
+    
+    // Add debug logging
+    console.log("Gemini Concept Map API response status:", result?.response ? "Success" : "No response");
+    
+    if (!result || !result.response) {
+      throw new Error("Empty response from Gemini API for concept map");
+    }
+    
+    const response = await result.response;
+    const text = response?.text();
+    
+    if (!text) {
+      throw new Error("No text in Gemini API response for concept map");
+    }
+    
+    try {
+      return JSON.parse(text);
+    } catch (parseError) {
+      console.error("Error parsing concept map JSON:", parseError);
+      throw new Error("Invalid JSON in Gemini API response");
+    }
   } catch (error) {
-    console.error("Error parsing concept map JSON:", error);
+    console.error("Error generating concept map with Gemini:", error);
     // Fallback to simulated data
     return generateKnowledgeGraph(content);
   }
