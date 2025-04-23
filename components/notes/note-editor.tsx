@@ -12,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { ArrowLeft, Loader2, Sparkles, CheckCircle } from "lucide-react"
 import { toast } from "@/components/ui/use-toast"
+import { ConceptMap } from "@/components/notes/concept-map"
 
 interface NoteEditorProps {
   noteId: string
@@ -21,7 +22,10 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
   const router = useRouter()
   const { note, isLoading } = useNote(noteId)
   const { updateNote } = useNotes()
-  const { isAnalyzing, summary, analyzeNote, resetSummary } = useAIAssistant()
+  const { isAnalyzing, summary, conceptMapData, analyzeNote, resetAnalysis } = useAIAssistant()
+  
+  // Analysis view mode (text or visual)
+  const [analysisView, setAnalysisView] = useState<'text' | 'visual'>('text')
   
   // Use refs to track internal state that shouldn't trigger re-renders
   const initializedRef = useRef(false)
@@ -205,24 +209,60 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
       </div>
 
       <Sheet open={showAISummary} onOpenChange={setShowAISummary}>
-        <SheetContent>
+        <SheetContent className="sm:max-w-md md:max-w-xl">
           <SheetHeader>
             <SheetTitle>AI Analysis</SheetTitle>
-            <SheetDescription>Here's what our AI assistant thinks about your note</SheetDescription>
+            <SheetDescription>See your note summarized and visualized</SheetDescription>
           </SheetHeader>
+          
+          {/* View selector tabs */}
+          <div className="mt-4 flex space-x-2">
+            <Button 
+              variant={analysisView === 'text' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setAnalysisView('text')}
+            >
+              Text Summary
+            </Button>
+            <Button 
+              variant={analysisView === 'visual' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setAnalysisView('visual')}
+            >
+              Concept Map
+            </Button>
+          </div>
+          
           <div className="mt-6">
             {isAnalyzing ? (
               <div className="flex flex-col items-center justify-center py-8">
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 <p className="mt-2 text-sm text-muted-foreground">Analyzing your note...</p>
               </div>
-            ) : summary ? (
-              <div className="prose dark:prose-invert">
-                <h3>Summary</h3>
-                <p>{summary}</p>
-              </div>
+            ) : analysisView === 'text' ? (
+              summary ? (
+                <div className="prose dark:prose-invert">
+                  <h3>Summary</h3>
+                  <p>{summary}</p>
+                </div>
+              ) : (
+                <p className="text-muted-foreground">Click the "AI Analyze" button to get insights about your note.</p>
+              )
             ) : (
-              <p className="text-muted-foreground">Click the "AI Analyze" button to get insights about your note.</p>
+              <div>
+                <h3 className="mb-4 text-lg font-medium">Knowledge Graph</h3>
+                {conceptMapData ? (
+                  <div className="rounded-md bg-background">
+                    <ConceptMap data={conceptMapData} />
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground">No concept data available. Try analyzing your note first.</p>
+                )}
+                <p className="mt-3 text-xs text-muted-foreground">
+                  This visual map shows the key concepts in your note and how they relate to each other.
+                  Colors represent different themes, and larger nodes indicate more important concepts.
+                </p>
+              </div>
             )}
           </div>
         </SheetContent>
