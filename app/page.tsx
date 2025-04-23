@@ -27,6 +27,21 @@ export default function Home() {
                     <Link href="/login">Sign In</Link>
                   </Button>
                 </div>
+                
+                {/* Extension information */}
+                <div className="mt-6 rounded-lg border bg-muted/20 p-4">
+                  <h3 className="text-lg font-semibold">Try our MindNotes Extension</h3>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    Lets you save and summarize web pages, add notes and access your content from any device.
+                  </p>
+                  <div className="mt-3">
+                    <Button variant="secondary" size="sm" asChild>
+                      <Link href="https://github.com/blueewhitee/mindnote-Extension" target="_blank" rel="noopener noreferrer">
+                        Get the Extension
+                      </Link>
+                    </Button>
+                  </div>
+                </div>
               </div>
               <div className="flex items-center justify-center">
                 <div className="relative h-[350px] w-[350px] rounded-full bg-gradient-to-r from-primary/20 to-secondary/20 p-4">
@@ -63,15 +78,6 @@ export default function Home() {
             <div className="mx-auto grid max-w-5xl grid-cols-1 gap-6 py-12 md:grid-cols-3">
               <div className="flex flex-col items-center space-y-2 rounded-lg border p-6 shadow-sm">
                 <div className="rounded-full bg-primary/10 p-3">
-                  <CheckCircle className="h-6 w-6 text-primary" />
-                </div>
-                <h3 className="text-xl font-bold">COMING SOON</h3>
-                <p className="text-center text-muted-foreground">
-                  save your favorite page directly here with our extension.
-                </p>
-              </div>
-              <div className="flex flex-col items-center space-y-2 rounded-lg border p-6 shadow-sm">
-                <div className="rounded-full bg-primary/10 p-3">
                   <Sparkles className="h-6 w-6 text-primary" />
                 </div>
                 <h3 className="text-xl font-bold">AI-Powered Insights</h3>
@@ -86,6 +92,15 @@ export default function Home() {
                 <h3 className="text-xl font-bold">Distraction-Free Writing</h3>
                 <p className="text-center text-muted-foreground">
                   Focus on your thoughts with our clean, minimalist editor designed for productivity.
+                </p>
+              </div>
+              <div className="flex flex-col items-center space-y-2 rounded-lg border p-6 shadow-sm">
+                <div className="rounded-full bg-primary/10 p-3">
+                  <CheckCircle className="h-6 w-6 text-primary" />
+                </div>
+                <h3 className="text-xl font-bold">COMING SOON</h3>
+                <p className="text-center text-muted-foreground">
+                  Semantic Search to find the exact information across all your notes with natural language queries.
                 </p>
               </div>
             </div>
