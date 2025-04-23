@@ -28,8 +28,8 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <QueryClientProvider> {/* Wrap with QueryClientProvider */}
-            <AuthProvider> {/* AuthProvider should be inside QueryClientProvider if it uses query hooks */}
+          <QueryClientProvider> 
+            <AuthProvider> 
               {children}
               <Toaster />
             </AuthProvider>
