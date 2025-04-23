@@ -65,9 +65,9 @@ export default function Home() {
                 <div className="rounded-full bg-primary/10 p-3">
                   <CheckCircle className="h-6 w-6 text-primary" />
                 </div>
-                <h3 className="text-xl font-bold">Effortless Organization</h3>
+                <h3 className="text-xl font-bold">COMING SOON</h3>
                 <p className="text-center text-muted-foreground">
-                  Keep your thoughts organized with our intuitive interface and automatic categorization.
+                  save your favorite page directly here with our extnsion.
                 </p>
               </div>
               <div className="flex flex-col items-center space-y-2 rounded-lg border p-6 shadow-sm">
