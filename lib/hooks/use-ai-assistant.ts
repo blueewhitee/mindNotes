@@ -89,32 +89,13 @@ export function useAIAssistant() {
         const data = await fetchAnalysis(content)
         console.log("Auto-summary received from API:", data.summary ? data.summary.substring(0, 50) + "..." : "null")
         
-        // Set the summary state
+        // Set the summary state - the note-editor component will handle saving
         setSummary(data.summary)
         
-        // IMPORTANT: Force an immediate save with the new summary
-        // This ensures the summary is saved to the database right after generation
-        console.log("Triggering immediate save with summary")
-        try {
-          const supabase = createClient()
-          const { data: noteData, error } = await supabase
-            .from("notes")
-            .update({
-              summary: data.summary,
-              updated_at: new Date().toISOString()
-            })
-            .eq("id", noteId) // Now using the proper noteId parameter
-            .select()
-            .single()
-            
-          if (error) {
-            console.error("Error saving summary directly:", error.message)
-          } else {
-            console.log("Summary saved directly to database!")
-          }
-        } catch (saveError) {
-          console.error("Failed direct summary save:", saveError)
-        }
+        // IMPORTANT: Removed the direct Supabase call here to avoid race conditions
+        // The summary is now only saved in one place - through the note-editor's
+        // useEffect hook that watches for summary changes
+        
       } catch (error) {
         console.error("Error auto-summarizing note:", error)
         // Don't show a toast for auto-summarization failures

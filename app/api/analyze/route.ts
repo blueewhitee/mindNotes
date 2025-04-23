@@ -5,6 +5,7 @@ import { GoogleGenerativeAI } from "@google/generative-ai"
 
 // Initialize Google Generative AI client
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY || "");
+// Update to use the correct model name - gemini-2.0-flash is more commonly used and reliable
 const geminiModel = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
 // Initialize Redis client for rate limiting and caching
@@ -185,6 +186,8 @@ async function generateSummaryWithGemini(content: string): Promise<string> {
       throw new Error("API key not configured properly");
     }
 
+    console.log("Calling Gemini API for summary generation with content length:", content.length);
+
     const prompt = `Summarize the following content with no fluff or introduction. Start immediately with the key points and main ideas. Focus on clarity, brevity, and core insights only.
     ${content}`;
 
@@ -196,7 +199,7 @@ async function generateSummaryWithGemini(content: string): Promise<string> {
     const apiPromise = geminiModel.generateContent(prompt);
     const result = await Promise.race([apiPromise, timeoutPromise]) as any;
     
-    // Add debug logging
+    // Add detailed debug logging
     console.log("Gemini API response status:", result?.response ? "Success" : "No response");
     
     if (!result || !result.response) {
@@ -209,11 +212,20 @@ async function generateSummaryWithGemini(content: string): Promise<string> {
     if (!text) {
       throw new Error("No text in Gemini API response");
     }
+
+    console.log("Gemini API summary generation successful, text length:", text.length);
     
     return text;
   } catch (error) {
     // Detailed error logging
     console.error("Gemini API error:", error);
+    if (error instanceof Error) {
+      console.error("Error type:", error.name);
+      console.error("Error message:", error.message);
+      console.error("Error stack:", error.stack);
+    } else {
+      console.error("Unknown error type:", typeof error);
+    }
     throw error; // Re-throw so the caller knows there was an error
   }
 }
@@ -257,12 +269,12 @@ async function generateConceptMapWithGemini(content: string) {
     Note content to analyze:
     ${content}
     
-    Only respond with valid JSON. No explanations or additional text.
+    Return ONLY the raw JSON with no markdown formatting, code blocks, or additional text.
     `;
 
     // Add timeout to prevent hanging
     const timeoutPromise = new Promise<never>((_, reject) => {
-      setTimeout(() => reject(new Error("Gemini API request timed out")), 15000); // 15 second timeout
+      setTimeout(() => reject(new Error("Gemini API request timed out")), 30000); // Increase to 30 second timeout
     });
 
     const apiPromise = geminiModel.generateContent(prompt);
@@ -276,16 +288,46 @@ async function generateConceptMapWithGemini(content: string) {
     }
     
     const response = await result.response;
-    const text = response?.text();
+    let text = response?.text();
     
     if (!text) {
       throw new Error("No text in Gemini API response for concept map");
     }
     
+    // Clean up the response text to handle markdown code blocks
+    // This is the critical fix - Gemini sometimes returns responses wrapped in markdown code blocks
+    console.log("Raw response text preview:", text.substring(0, 60));
+    
+    // Remove markdown code blocks if present
+    if (text.includes("```json")) {
+      text = text.replace(/```json\s*/g, "").replace(/\s*```\s*$/g, "");
+      console.log("Cleaned markdown code blocks from JSON response");
+    }
+    
+    // Remove any trailing commas which can cause JSON parse errors
+    text = text.replace(/,\s*}/g, "}").replace(/,\s*]/g, "]");
+    
     try {
-      return JSON.parse(text);
+      const parsedData = JSON.parse(text);
+      console.log("Successfully parsed JSON with concepts:", parsedData.concepts?.length || 0);
+      return parsedData;
     } catch (parseError) {
       console.error("Error parsing concept map JSON:", parseError);
+      console.error("Problem text:", text);
+      
+      // Try one more aggressive cleanup approach
+      try {
+        // Find anything that looks like a JSON object
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (jsonMatch && jsonMatch[0]) {
+          console.log("Attempting to parse extracted JSON object");
+          const extractedJson = jsonMatch[0];
+          return JSON.parse(extractedJson);
+        }
+      } catch (secondError) {
+        console.error("Second parse attempt also failed");
+      }
+      
       throw new Error("Invalid JSON in Gemini API response");
     }
   } catch (error) {

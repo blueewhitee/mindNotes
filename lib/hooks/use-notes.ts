@@ -225,6 +225,7 @@ export function useNotes() {
           .from("notes")
           .update(updateObject)
           .eq("id", id)
+          .eq("user_id", user.id) // Add user_id check for security
           .select()
           .single()
 
@@ -252,6 +253,12 @@ export function useNotes() {
     onSuccess: (updatedNote) => {
       queryClient.invalidateQueries({ queryKey: ["notes"] })
       queryClient.invalidateQueries({ queryKey: ["note", updatedNote.id] })
+      
+      // Add toast notification for feedback
+      toast({
+        title: "Note saved",
+        description: "Your note has been saved successfully.",
+      })
     },
     onError: (error: any) => {
       console.error("Error in updateNote mutation:", error)

@@ -96,8 +96,9 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
     console.log("Summary changed, triggering immediate save:", summary ? summary.substring(0, 30) + "..." : "null");
     
     const saveSummaryOnly = async () => {
+      // If already saving, don't try to save again
       if (savingRef.current) {
-        console.log("Already saving, will include summary in ongoing save");
+        console.log("Already saving, will skip duplicate summary save");
         return;
       }
       
@@ -129,6 +130,11 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
         }, 2000);
       } catch (error) {
         console.error("Error saving summary:", error);
+        toast({
+          title: "Error saving summary",
+          description: "Failed to save the generated summary.",
+          variant: "destructive",
+        });
       } finally {
         savingRef.current = false;
         setIsSaving(false);
