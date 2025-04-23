@@ -67,7 +67,7 @@ export default function Home() {
                 </div>
                 <h3 className="text-xl font-bold">COMING SOON</h3>
                 <p className="text-center text-muted-foreground">
-                  save your favorite page directly here with our extnsion.
+                  save your favorite page directly here with our extension.
                 </p>
               </div>
               <div className="flex flex-col items-center space-y-2 rounded-lg border p-6 shadow-sm">
