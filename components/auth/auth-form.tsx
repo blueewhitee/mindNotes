@@ -230,6 +230,29 @@ export function AuthForm() {
                 Sign In
               </Button>
             </form>
+            
+            {/* Demo Account Information */}
+            <div className="mt-4 p-3 bg-muted rounded-md border border-border">
+              <h3 className="text-sm font-medium mb-1">Demo Account</h3>
+              <p className="text-xs text-muted-foreground mb-1">Try MindNotes with our demo credentials:</p>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="font-medium">Email:</div>
+                <div className="font-mono">demo@mindnotes.app</div>
+                <div className="font-medium">Password:</div>
+                <div className="font-mono">demomindnotes</div>
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="w-full mt-2 text-xs h-8"
+                onClick={() => {
+                  setEmail("demo@mindnotes.app");
+                  setPassword("demomindnotes");
+                }}
+              >
+                Fill Demo Credentials
+              </Button>
+            </div>
           </TabsContent>
           <TabsContent value="signup">
             <form onSubmit={debugSubmit} className="space-y-4">
