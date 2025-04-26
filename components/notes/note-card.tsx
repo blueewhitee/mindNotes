@@ -5,7 +5,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
 import type { Note } from "@/lib/types/database.types"
-import { formatDate, truncateText } from "@/lib/utils"
+import { formatDate, truncateText, isDemoUser } from "@/lib/utils"
 import { useNotes } from "@/lib/hooks/use-notes"
 import { useIsMobile } from "@/components/ui/use-mobile"
 import { Button } from "@/components/ui/button"
@@ -32,8 +32,10 @@ import {
   MoreVertical, 
   Trash, 
   FileText, 
-  Image as ImageIcon
+  Image as ImageIcon,
+  Eye
 } from "lucide-react"
+import { useAuth } from "@/components/providers/auth-provider"
 
 interface NoteCardProps {
   note: Note
@@ -42,6 +44,8 @@ interface NoteCardProps {
 export function NoteCard({ note }: NoteCardProps) {
   const router = useRouter()
   const { deleteNote, archiveNote } = useNotes()
+  const { user } = useAuth() // Get the current user
+  const isDemo = isDemoUser(user) // Check if demo user
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [isHovered, setIsHovered] = useState(false)
   const isMobile = useIsMobile()
@@ -96,29 +100,41 @@ export function NoteCard({ note }: NoteCardProps) {
                 <FileText className="h-3.5 w-3.5" />
               </span>
             )}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="h-8 w-8 p-0">
-                  <span className="sr-only">Open menu</span>
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => router.push(`/dashboard/note/${note.id}`)}>Edit</DropdownMenuItem>
-                <DropdownMenuItem onClick={handleArchive}>
-                  <Archive className="mr-2 h-4 w-4" />
-                  Archive
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  className="text-destructive focus:text-destructive"
-                  onClick={() => setShowDeleteDialog(true)}
-                >
-                  <Trash className="mr-2 h-4 w-4" />
-                  Delete
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {!isDemo ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="h-8 w-8 p-0">
+                    <span className="sr-only">Open menu</span>
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => router.push(`/dashboard/note/${note.id}`)}>Edit</DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleArchive}>
+                    <Archive className="mr-2 h-4 w-4" />
+                    Archive
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onClick={() => setShowDeleteDialog(true)}
+                  >
+                    <Trash className="mr-2 h-4 w-4" />
+                    Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="h-8 p-2 flex gap-1 items-center text-xs"
+                onClick={() => router.push(`/dashboard/note/${note.id}`)}
+              >
+                <Eye className="h-3.5 w-3.5" />
+                View
+              </Button>
+            )}
           </div>
         </CardHeader>
         <CardContent className="flex-1 overflow-hidden">

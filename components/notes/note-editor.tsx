@@ -12,10 +12,12 @@ import { Textarea } from "@/components/ui/textarea"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
-import { ArrowLeft, Loader2, Sparkles, CheckCircle, FileText, X, ImagePlus, Eye, Edit } from "lucide-react"
+import { ArrowLeft, Loader2, Sparkles, CheckCircle, FileText, X, ImagePlus, Eye, Edit, Info } from "lucide-react"
 import { toast } from "@/components/ui/use-toast"
 import { ConceptMap } from "@/components/notes/concept-map"
 import { createClient } from "@/lib/supabase/client"
+import { isDemoUser } from "@/lib/utils"
+import { useAuth } from "@/components/providers/auth-provider"
 
 // Helper function to parse markdown image syntax and render images
 function renderMarkdownWithImages(content: string, onDeleteImage?: (src: string, fullMatch: string) => void) {
@@ -61,6 +63,8 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
   const supabase = createClient()
   const { note, isLoading } = useNote(noteId)
   const { updateNote } = useNotes()
+  const { user } = useAuth() // Get the current user
+  const isDemo = isDemoUser(user) // Check if demo user
   const { 
     isAnalyzing, 
     isAutoSummarizing,
@@ -671,6 +675,14 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
 
   return (
     <div className="flex h-full flex-col">
+      {isDemo && (
+        <div className="bg-yellow-50 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-200 px-4 py-2">
+          <div className="flex items-center gap-2">
+            <Info className="h-4 w-4" />
+            <p className="text-sm font-medium">Demo Mode: Note editing is view-only</p>
+          </div>
+        </div>
+      )}
       <div className="flex items-center justify-between gap-2 border-b p-4">
         <Button variant="ghost" size="icon" onClick={() => router.push("/dashboard")}>
           <ArrowLeft className="h-4 w-4" />
@@ -682,6 +694,7 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
             onChange={(e) => setTitle(e.target.value)}
             placeholder="Note title"
             className="h-auto border-none text-lg font-medium shadow-none focus-visible:ring-0"
+            readOnly={isDemo}
           />
           {isSaving && (
             <div className="flex items-center text-xs text-muted-foreground">
@@ -709,31 +722,37 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
           )}
         </div>
         <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isUploading || !!imageUrl}
-            title={imageUrl ? "Remove image first to upload another" : "Upload Image"}
-          >
-            {isUploading ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
-            ) : (
-              <ImagePlus className="h-5 w-5" />
-            )}
-          </Button>
-          <Input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            onChange={handleImageUpload}
-            className="hidden"
-            disabled={isUploading}
-          />
-          <Button onClick={handleAnalyze} disabled={isAnalyzing || !content.trim()}>
-            <Sparkles className="mr-2 h-4 w-4" />
-            AI Summarize
-          </Button>
+          {!isDemo && (
+            <>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading || !!imageUrl}
+                title={imageUrl ? "Remove image first to upload another" : "Upload Image"}
+              >
+                {isUploading ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <ImagePlus className="h-5 w-5" />
+                )}
+              </Button>
+              <Input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleImageUpload}
+                className="hidden"
+                disabled={isUploading}
+              />
+            </>
+          )}
+          {!isDemo && (
+            <Button onClick={handleAnalyze} disabled={isAnalyzing || !content.trim()}>
+              <Sparkles className="mr-2 h-4 w-4" />
+              AI Summarize
+            </Button>
+          )}
         </div>
       </div>
       
@@ -746,6 +765,7 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             className="text-2xl font-bold border-none shadow-none focus-visible:ring-0 px-0"
+            readOnly={isDemo}
           />
         </div>
 
@@ -763,25 +783,29 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
               }}
               unoptimized
             />
-            <Button
-              variant="destructive"
-              size="icon"
-              className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity h-7 w-7 z-10"
-              onClick={handleRemoveImage}
-              title="Remove Image"
-            >
-              <X className="h-4 w-4" />
-            </Button>
+            {!isDemo && (
+              <Button
+                variant="destructive"
+                size="icon"
+                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity h-7 w-7 z-10"
+                onClick={handleRemoveImage}
+                title="Remove Image"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
           </div>
         )}
 
         <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'edit' | 'preview')} className="w-full">
           <div className="flex justify-end mb-2">
             <TabsList>
-              <TabsTrigger value="edit" className="flex items-center gap-1">
-                <Edit className="h-4 w-4" />
-                <span>Edit</span>
-              </TabsTrigger>
+              {!isDemo && (
+                <TabsTrigger value="edit" className="flex items-center gap-1">
+                  <Edit className="h-4 w-4" />
+                  <span>Edit</span>
+                </TabsTrigger>
+              )}
               <TabsTrigger value="preview" className="flex items-center gap-1">
                 <Eye className="h-4 w-4" />
                 <span>Preview</span>
@@ -789,48 +813,51 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
             </TabsList>
           </div>
           
-          <TabsContent value="edit" className="relative mt-0">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute top-2 right-2 z-10 opacity-70 hover:opacity-100"
-              onClick={() => inlineFileInputRef.current?.click()}
-              disabled={isUploading}
-              title="Insert image at cursor position"
-            >
-              {isUploading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <ImagePlus className="h-4 w-4" />
-              )}
-            </Button>
-            
-            <Input
-              ref={inlineFileInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handleInlineImageUpload}
-              className="hidden"
-              disabled={isUploading}
-            />
-            
-            <label htmlFor="note-content" className="sr-only">Content</label>
-            <Textarea
-              id="note-content"
-              ref={textareaRef}
-              placeholder="Start writing your note..."
-              value={content}
-              onChange={handleTextareaChange}
-              onClick={handleTextareaSelect}
-              onKeyUp={handleTextareaSelect}
-              onFocus={handleTextareaSelect}
-              className="min-h-[300px] border-none shadow-none focus-visible:ring-0 px-0 resize-none pr-10"
-            />
-          </TabsContent>
+          {!isDemo && (
+            <TabsContent value="edit" className="relative mt-0">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute top-2 right-2 z-10 opacity-70 hover:opacity-100"
+                onClick={() => inlineFileInputRef.current?.click()}
+                disabled={isUploading}
+                title="Insert image at cursor position"
+              >
+                {isUploading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <ImagePlus className="h-4 w-4" />
+                )}
+              </Button>
+              
+              <Input
+                ref={inlineFileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleInlineImageUpload}
+                className="hidden"
+                disabled={isUploading}
+              />
+              
+              <label htmlFor="note-content" className="sr-only">Content</label>
+              <Textarea
+                id="note-content"
+                ref={textareaRef}
+                placeholder="Start writing your note..."
+                value={content}
+                onChange={handleTextareaChange}
+                onClick={handleTextareaSelect}
+                onKeyUp={handleTextareaSelect}
+                onFocus={handleTextareaSelect}
+                className="min-h-[300px] border-none shadow-none focus-visible:ring-0 px-0 resize-none pr-10"
+                readOnly={isDemo}
+              />
+            </TabsContent>
+          )}
           
-          <TabsContent value="preview" className="mt-0">
+          <TabsContent value={isDemo ? "preview" : viewMode === "preview" ? "preview" : "edit"} className="mt-0">
             <div className="prose prose-sm dark:prose-invert max-w-none min-h-[300px] p-4 border rounded-md bg-background">
-              {renderMarkdownWithImages(content, handleDeleteInlineImage).map((segment, index) => {
+              {renderMarkdownWithImages(content, !isDemo ? handleDeleteInlineImage : undefined).map((segment, index) => {
                 if (segment.type === 'text') {
                   return segment.content.split('\n').map((paragraph, pIndex) => (
                     <p key={`${index}-${pIndex}`} className="my-2">
@@ -845,15 +872,17 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
                         alt={segment.alt}
                         className="rounded-md max-w-full max-h-[300px] object-contain"
                       />
-                      <Button
-                        variant="destructive"
-                        size="icon"
-                        className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity h-7 w-7 z-10"
-                        onClick={() => handleDeleteInlineImage(segment.src, segment.fullMatch)}
-                        title="Delete Image"
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
+                      {!isDemo && (
+                        <Button
+                          variant="destructive"
+                          size="icon"
+                          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity h-7 w-7 z-10"
+                          onClick={() => handleDeleteInlineImage(segment.src, segment.fullMatch)}
+                          title="Delete Image"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   );
                 }

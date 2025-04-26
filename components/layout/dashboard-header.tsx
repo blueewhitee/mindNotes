@@ -6,13 +6,14 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { useDebounce } from "@/lib/hooks/use-debounce"
 import { useNotes } from "@/lib/hooks/use-notes"
-import { Plus, Search, User, Loader2, RefreshCw, Bookmark } from "lucide-react"
+import { Plus, Search, User, Loader2, RefreshCw, Bookmark, Info } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { useAuth } from "@/components/providers/auth-provider"
 import { createClient } from "@/lib/supabase/client"
 import { toast } from "@/components/ui/use-toast"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { isDemoUser } from "@/lib/utils"
 
 export function DashboardHeader() {
   const router = useRouter()
@@ -25,6 +26,7 @@ export function DashboardHeader() {
   
   // Get auth state and refresh function
   const { user, isLoading, refreshAuth } = useAuth()
+  const isDemo = isDemoUser(user) // Check if demo user
   const supabase = createClient()
 
   // Update activeTab based on the current URL path
@@ -151,6 +153,14 @@ export function DashboardHeader() {
 
   return (
     <div className="flex flex-col gap-4">
+      {isDemo && (
+        <div className="bg-yellow-50 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-200 px-4 py-2 rounded-md">
+          <div className="flex items-center gap-2">
+            <Info className="h-4 w-4" />
+            <p className="text-sm font-medium">Demo Mode: You have read-only access to notes and bookmarks</p>
+          </div>
+        </div>
+      )}
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-2">
           <h1 className="text-2xl font-bold">Dashboard</h1>
@@ -172,75 +182,91 @@ export function DashboardHeader() {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <Button 
-            onClick={async () => {
-              if (activeTab === "notes") {
-                try {
-                  // First, check if we already have a user
-                  if (!user) {
-                    await refreshAuth();
+          {!isDemo ? (
+            <Button 
+              onClick={async () => {
+                if (activeTab === "notes") {
+                  try {
+                    // First, check if we already have a user
                     if (!user) {
+                      await refreshAuth();
+                      if (!user) {
+                        toast({
+                          title: "Authentication Required",
+                          description: "Please log in to create notes",
+                          variant: "destructive",
+                        });
+                        router.push('/login');
+                        return;
+                      }
+                    }
+                    
+                    // Create the note
+                    console.log("Attempting to create note for user:", user?.id || "unknown");
+                    const newNote = await createNote.mutateAsync({
+                      title: "Untitled Note",
+                    });
+
+                    if (newNote && newNote.id) {
+                      router.push(`/dashboard/note/${newNote.id}`);
+                    } else {
                       toast({
-                        title: "Authentication Required",
-                        description: "Please log in to create notes",
+                        title: "Error",
+                        description: "Failed to create a new note. No valid response received.",
                         variant: "destructive",
                       });
-                      router.push('/login');
-                      return;
                     }
-                  }
-                  
-                  // Create the note
-                  console.log("Attempting to create note for user:", user?.id || "unknown");
-                  const newNote = await createNote.mutateAsync({
-                    title: "Untitled Note",
-                  });
-
-                  if (newNote && newNote.id) {
-                    router.push(`/dashboard/note/${newNote.id}`);
-                  } else {
+                  } catch (error) {
+                    console.error("Error creating note:", error);
+                    // Provide more helpful error messages
+                    let errorMessage = "An unexpected error occurred";
+                    
+                    if (error instanceof Error) {
+                      errorMessage = error.message;
+                    } else if (typeof error === 'object' && error !== null) {
+                      errorMessage = JSON.stringify(error);
+                    }
+                    
                     toast({
-                      title: "Error",
-                      description: "Failed to create a new note. No valid response received.",
+                      title: "Error creating note",
+                      description: errorMessage,
                       variant: "destructive",
                     });
                   }
-                } catch (error) {
-                  console.error("Error creating note:", error);
-                  // Provide more helpful error messages
-                  let errorMessage = "An unexpected error occurred";
-                  
-                  if (error instanceof Error) {
-                    errorMessage = error.message;
-                  } else if (typeof error === 'object' && error !== null) {
-                    errorMessage = JSON.stringify(error);
-                  }
-                  
-                  toast({
-                    title: "Error creating note",
-                    description: errorMessage,
-                    variant: "destructive",
-                  });
+                } else {
+                  // Handle bookmark creation
+                  handleCreateBookmark();
                 }
-              } else {
-                // Handle bookmark creation
-                handleCreateBookmark();
-              }
-            }} 
-            className="relative"
-          >
-            {activeTab === "notes" ? (
-              <>
-                <Plus className="mr-2 h-4 w-4" />
-                Create Note
-              </>
-            ) : (
-              <>
-                <Plus className="mr-2 h-4 w-4" />
-                Add Bookmark
-              </>
-            )}
-          </Button>
+              }} 
+              className="relative"
+            >
+              {activeTab === "notes" ? (
+                <>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Create Note
+                </>
+              ) : (
+                <>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Bookmark
+                </>
+              )}
+            </Button>
+          ) : (
+            <Button disabled className="relative opacity-60">
+              {activeTab === "notes" ? (
+                <>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Create Note
+                </>
+              ) : (
+                <>
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Bookmark
+                </>
+              )}
+            </Button>
+          )}
           
           {/* Debug button in development for auth refresh */}
           {process.env.NODE_ENV === 'development' && (
@@ -278,6 +304,9 @@ export function DashboardHeader() {
                     )}
                     {user.email && (
                       <p className="text-sm text-muted-foreground">{user.email}</p>
+                    )}
+                    {isDemo && (
+                      <p className="text-xs text-orange-500 font-medium">Demo Account</p>
                     )}
                   </div>
                 </div>

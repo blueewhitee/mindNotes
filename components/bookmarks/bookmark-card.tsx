@@ -11,6 +11,8 @@ import { useBookmarks, Bookmark as BookmarkType } from "@/lib/hooks/use-bookmark
 import { useBookmarkFolders } from "@/lib/hooks/use-bookmark-folders"
 import { formatDistanceToNow } from "date-fns"
 import { BookmarkDetail } from "./bookmark-detail"
+import { useAuth } from "@/components/providers/auth-provider"
+import { isDemoUser } from "@/lib/utils"
 
 interface BookmarkCardProps {
   bookmark: BookmarkType
@@ -20,6 +22,8 @@ export function BookmarkCard({ bookmark }: BookmarkCardProps) {
   const router = useRouter()
   const { deleteBookmark, updateBookmark, moveBookmarkToFolder } = useBookmarks()
   const { folders } = useBookmarkFolders()
+  const { user } = useAuth() // Get the current user
+  const isDemo = isDemoUser(user) // Check if demo user
   const [isDeleting, setIsDeleting] = useState(false)
   const [isUpdating, setIsUpdating] = useState(false)
   const [isMoving, setIsMoving] = useState(false)
@@ -122,66 +126,68 @@ export function BookmarkCard({ bookmark }: BookmarkCardProps) {
               )}
               <CardTitle className="text-base font-medium">{bookmark.title}</CardTitle>
             </a>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
-                  className="h-8 w-8 opacity-0 group-hover:opacity-100"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <MoreVertical className="h-4 w-4" />
-                  <span className="sr-only">Menu</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={openBookmark}>
-                  <ExternalLink className="mr-2 h-4 w-4" />
-                  <span>Open URL</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={editBookmark}>
-                  <Edit className="mr-2 h-4 w-4" />
-                  <span>Edit</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleToggleFavorite}>
-                  <Star className={`mr-2 h-4 w-4 ${bookmark.is_favorite ? "fill-yellow-400 text-yellow-400" : ""}`} />
-                  <span>{bookmark.is_favorite ? "Remove from favorites" : "Add to favorites"}</span>
-                </DropdownMenuItem>
-                
-                {/* Folder options submenu */}
-                <DropdownMenuSub>
-                  <DropdownMenuSubTrigger>
-                    <FolderClosed className="mr-2 h-4 w-4" />
-                    <span>Move to folder</span>
-                  </DropdownMenuSubTrigger>
-                  <DropdownMenuSubContent>
-                    <DropdownMenuItem onClick={() => handleMoveToFolder(null)}>
-                      <span className={bookmark.folder_id === null ? "font-medium" : ""}>Root</span>
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    {folders.map(folder => (
-                      <DropdownMenuItem 
-                        key={folder.id} 
-                        onClick={() => handleMoveToFolder(folder.id)}
-                      >
-                        <span className={bookmark.folder_id === folder.id ? "font-medium" : ""}>
-                          {folder.name}
-                        </span>
+            {!isDemo && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    className="h-8 w-8 opacity-0 group-hover:opacity-100"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <MoreVertical className="h-4 w-4" />
+                    <span className="sr-only">Menu</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={openBookmark}>
+                    <ExternalLink className="mr-2 h-4 w-4" />
+                    <span>Open URL</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={editBookmark}>
+                    <Edit className="mr-2 h-4 w-4" />
+                    <span>Edit</span>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleToggleFavorite}>
+                    <Star className={`mr-2 h-4 w-4 ${bookmark.is_favorite ? "fill-yellow-400 text-yellow-400" : ""}`} />
+                    <span>{bookmark.is_favorite ? "Remove from favorites" : "Add to favorites"}</span>
+                  </DropdownMenuItem>
+                  
+                  {/* Folder options submenu */}
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger>
+                      <FolderClosed className="mr-2 h-4 w-4" />
+                      <span>Move to folder</span>
+                    </DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent>
+                      <DropdownMenuItem onClick={() => handleMoveToFolder(null)}>
+                        <span className={bookmark.folder_id === null ? "font-medium" : ""}>Root</span>
                       </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuSubContent>
-                </DropdownMenuSub>
-                
-                <DropdownMenuSeparator />
-                <DropdownMenuItem 
-                  onClick={handleDelete}
-                  className="text-destructive focus:text-destructive"
-                >
-                  <Trash className="mr-2 h-4 w-4" />
-                  <span>Delete</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                      <DropdownMenuSeparator />
+                      {folders.map(folder => (
+                        <DropdownMenuItem 
+                          key={folder.id} 
+                          onClick={() => handleMoveToFolder(folder.id)}
+                        >
+                          <span className={bookmark.folder_id === folder.id ? "font-medium" : ""}>
+                            {folder.name}
+                          </span>
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
+                  
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem 
+                    onClick={handleDelete}
+                    className="text-destructive focus:text-destructive"
+                  >
+                    <Trash className="mr-2 h-4 w-4" />
+                    <span>Delete</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
           <a 
             className="line-clamp-1 break-all pt-1 cursor-pointer text-blue-500 hover:underline"
@@ -234,6 +240,7 @@ export function BookmarkCard({ bookmark }: BookmarkCardProps) {
         onDelete={handleDelete}
         onToggleFavorite={handleToggleFavorite}
         folderName={currentFolder?.name}
+        isDemo={isDemo}
       />
     </>
   )
