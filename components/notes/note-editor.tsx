@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
-import { ArrowLeft, Loader2, Sparkles, CheckCircle, FileText, X, ImagePlus, Eye, Edit, Info } from "lucide-react"
+import { ArrowLeft, Loader2, Sparkles, CheckCircle, FileText, X, ImagePlus, Eye, Edit, Info, ChevronRight, ChevronDown } from "lucide-react"
 import { toast } from "@/components/ui/use-toast"
 import { ConceptMap } from "@/components/notes/concept-map"
 import { createClient } from "@/lib/supabase/client"
@@ -81,6 +81,7 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
   const [cursorPosition, setCursorPosition] = useState<number | null>(null)
   const [imageUrl, setImageUrl] = useState<string | null>(null)
   const [isUploading, setIsUploading] = useState(false)
+  const [isImageCollapsed, setIsImageCollapsed] = useState(false)
 
   const initializedRef = useRef(false)
   const originalTitleRef = useRef("")
@@ -757,42 +758,67 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
       </div>
       
       <div className="flex-1 overflow-y-auto p-6 space-y-4">
-        <div>
-          <label htmlFor="note-title" className="sr-only">Title</label>
-          <Input
-            id="note-title"
-            placeholder="Note Title"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="text-2xl font-bold border-none shadow-none focus-visible:ring-0 px-0"
-            readOnly={isDemo}
-          />
-        </div>
-
         {imageUrl && (
-          <div className="relative group w-full max-w-xl mx-auto my-4 aspect-video bg-muted/30 rounded-md overflow-hidden">
-            <Image
-              src={imageUrl}
-              alt="Note image"
-              layout="fill"
-              objectFit="contain"
-              className="block"
-              onError={(e) => {
-                console.error("Failed to load image:", imageUrl, e)
-                toast({ title: "Failed to load image", description: "The image URL might be invalid or inaccessible.", variant: "warning" })
-              }}
-              unoptimized
-            />
-            {!isDemo && (
-              <Button
-                variant="destructive"
-                size="icon"
-                className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity h-7 w-7 z-10"
-                onClick={handleRemoveImage}
-                title="Remove Image"
+          <div className="relative mb-4">
+            <div className="flex items-center justify-between mb-1 text-sm text-muted-foreground">
+              <button 
+                onClick={() => setIsImageCollapsed(!isImageCollapsed)} 
+                className="flex items-center text-xs font-medium hover:text-foreground transition-colors"
               >
-                <X className="h-4 w-4" />
-              </Button>
+                {isImageCollapsed ? (
+                  <>
+                    <ChevronRight className="h-3.5 w-3.5 mr-1" />
+                    <span>Show note image</span>
+                  </>
+                ) : (
+                  <>
+                    <ChevronDown className="h-3.5 w-3.5 mr-1" />
+                    <span>Hide note image</span>
+                  </>
+                )}
+              </button>
+              {!isDemo && !isImageCollapsed && (
+                <div className="flex gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-xs"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isUploading}
+                  >
+                    Replace
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-xs text-destructive hover:text-destructive"
+                    onClick={handleRemoveImage}
+                  >
+                    Remove
+                  </Button>
+                </div>
+              )}
+            </div>
+            
+            {!isImageCollapsed && (
+              <div className="relative group w-full max-w-xs mx-auto aspect-video bg-muted/30 rounded-md overflow-hidden">
+                <Image
+                  src={imageUrl}
+                  alt="Note image"
+                  layout="fill"
+                  objectFit="contain"
+                  className="block"
+                  onError={(e) => {
+                    console.error("Failed to load image:", imageUrl, e);
+                    toast({ 
+                      title: "Failed to load image", 
+                      description: "The image URL might be invalid or inaccessible.", 
+                      variant: "warning" 
+                    });
+                  }}
+                  unoptimized
+                />
+              </div>
             )}
           </div>
         )}
