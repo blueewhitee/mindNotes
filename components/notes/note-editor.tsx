@@ -875,14 +875,14 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
                 onClick={handleTextareaSelect}
                 onKeyUp={handleTextareaSelect}
                 onFocus={handleTextareaSelect}
-                className="min-h-[300px] border-none shadow-none focus-visible:ring-0 px-0 resize-none pr-10"
+                className="h-[calc(100vh-250px)] border-none shadow-none focus-visible:ring-0 px-0 resize-none pr-10"
                 readOnly={isDemo}
               />
             </TabsContent>
           )}
           
           <TabsContent value="preview" className="mt-0">
-            <div className="prose prose-sm dark:prose-invert max-w-none min-h-[300px] p-4 border rounded-md bg-background">
+            <div className="prose prose-sm dark:prose-invert max-w-none h-[calc(100vh-250px)] overflow-y-auto p-4 border rounded-md bg-background">
               {renderMarkdownWithImages(content, !isDemo ? handleDeleteInlineImage : undefined).map((segment, index) => {
                 if (segment.type === 'text') {
                   return segment.content.split('\n').map((paragraph, pIndex) => (
