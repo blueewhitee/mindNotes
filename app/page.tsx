@@ -36,7 +36,7 @@ export default function Home() {
                   </p>
                   <div className="mt-3">
                     <Button variant="secondary" size="sm" asChild>
-                      <Link href="https://github.com/blueewhitee/mindnote-Extension" target="_blank" rel="noopener noreferrer">
+                      <Link href="https://drive.google.com/file/d/1Vrov_V1sr82NTRTitALy5jYeyMXzdjn_/view?usp=sharing" target="_blank" rel="noopener noreferrer">
                         Get the Extension
                       </Link>
                     </Button>
