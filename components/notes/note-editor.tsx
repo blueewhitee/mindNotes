@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useRef, ChangeEvent } from "react"
+import React, { useEffect, useState, useRef, ChangeEvent } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import { useDebounce } from "@/lib/hooks/use-debounce"
@@ -12,12 +12,13 @@ import { Textarea } from "@/components/ui/textarea"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
-import { ArrowLeft, Loader2, Sparkles, CheckCircle, FileText, X, ImagePlus, Eye, Edit, Info, ChevronRight, ChevronDown } from "lucide-react"
+import { ArrowLeft, Loader2, Sparkles, CheckCircle, FileText, X, ImagePlus, Eye, Edit, Info, ChevronRight, ChevronDown, Heading2, Bold, Italic, Link, Underline } from "lucide-react"
 import { toast } from "@/components/ui/use-toast"
 import { ConceptMap } from "@/components/notes/concept-map"
 import { createClient } from "@/lib/supabase/client"
 import { isDemoUser } from "@/lib/utils"
 import { useAuth } from "@/components/providers/auth-provider"
+import ReactMarkdown from 'react-markdown'
 
 // Helper function to parse markdown image syntax and render images
 function renderMarkdownWithImages(content: string, onDeleteImage?: (src: string, fullMatch: string) => void) {
@@ -841,20 +842,174 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
           
           {!isDemo && (
             <TabsContent value="edit" className="relative mt-0">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="absolute top-2 right-2 z-10 opacity-70 hover:opacity-100"
-                onClick={() => inlineFileInputRef.current?.click()}
-                disabled={isUploading}
-                title="Insert image at cursor position"
-              >
-                {isUploading ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <ImagePlus className="h-4 w-4" />
-                )}
-              </Button>
+              <div className="absolute top-2 right-2 z-10 flex flex-col gap-2">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="opacity-70 hover:opacity-100"
+                  onClick={() => inlineFileInputRef.current?.click()}
+                  disabled={isUploading}
+                  title="Insert image at cursor position"
+                >
+                  {isUploading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <ImagePlus className="h-4 w-4" />
+                  )}
+                </Button>
+                
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="opacity-70 hover:opacity-100"
+                  onClick={() => {
+                    if (textareaRef.current) {
+                      const curPos = textareaRef.current.selectionStart;
+                      const textBefore = content.substring(0, curPos);
+                      const textAfter = content.substring(curPos);
+                      const newContent = textBefore + "## Heading" + textAfter;
+                      setContent(newContent);
+                      
+                      // Place cursor after inserted heading
+                      setTimeout(() => {
+                        if (textareaRef.current) {
+                          const newPosition = curPos + "## Heading".length;
+                          textareaRef.current.focus();
+                          textareaRef.current.setSelectionRange(newPosition, newPosition);
+                        }
+                      }, 0);
+                    }
+                  }}
+                  title="Insert heading"
+                >
+                  <Heading2 className="h-4 w-4" />
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="opacity-70 hover:opacity-100"
+                  onClick={() => {
+                    if (textareaRef.current) {
+                      const start = textareaRef.current.selectionStart;
+                      const end = textareaRef.current.selectionEnd;
+                      const selectedText = content.substring(start, end);
+                      
+                      const textBefore = content.substring(0, start);
+                      const textAfter = content.substring(end);
+                      const newContent = textBefore + "**" + (selectedText || "bold text") + "**" + textAfter;
+                      setContent(newContent);
+                      
+                      // Select the text between the bold markers
+                      setTimeout(() => {
+                        if (textareaRef.current) {
+                          const newStart = start + 2;
+                          const newEnd = newStart + (selectedText.length || "bold text".length);
+                          textareaRef.current.focus();
+                          textareaRef.current.setSelectionRange(newStart, newEnd);
+                        }
+                      }, 0);
+                    }
+                  }}
+                  title="Bold text"
+                >
+                  <Bold className="h-4 w-4" />
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="opacity-70 hover:opacity-100"
+                  onClick={() => {
+                    if (textareaRef.current) {
+                      const start = textareaRef.current.selectionStart;
+                      const end = textareaRef.current.selectionEnd;
+                      const selectedText = content.substring(start, end);
+                      
+                      const textBefore = content.substring(0, start);
+                      const textAfter = content.substring(end);
+                      const newContent = textBefore + "*" + (selectedText || "italic text") + "*" + textAfter;
+                      setContent(newContent);
+                      
+                      // Select the text between the italic markers
+                      setTimeout(() => {
+                        if (textareaRef.current) {
+                          const newStart = start + 1;
+                          const newEnd = newStart + (selectedText.length || "italic text".length);
+                          textareaRef.current.focus();
+                          textareaRef.current.setSelectionRange(newStart, newEnd);
+                        }
+                      }, 0);
+                    }
+                  }}
+                  title="Italic text"
+                >
+                  <Italic className="h-4 w-4" />
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="opacity-70 hover:opacity-100"
+                  onClick={() => {
+                    if (textareaRef.current) {
+                      const start = textareaRef.current.selectionStart;
+                      const end = textareaRef.current.selectionEnd;
+                      const selectedText = content.substring(start, end);
+                      
+                      const textBefore = content.substring(0, start);
+                      const textAfter = content.substring(end);
+                      const newContent = textBefore + "[" + (selectedText || "link text") + "](https://example.com)" + textAfter;
+                      setContent(newContent);
+                      
+                      // Select the URL for easy replacement
+                      setTimeout(() => {
+                        if (textareaRef.current) {
+                          const linkTextLength = selectedText.length || "link text".length;
+                          const newStart = start + linkTextLength + 3; // +3 for "[](", positioning after "]("
+                          const newEnd = newStart + "https://example.com".length;
+                          textareaRef.current.focus();
+                          textareaRef.current.setSelectionRange(newStart, newEnd);
+                        }
+                      }, 0);
+                    }
+                  }}
+                  title="Insert link"
+                >
+                  <Link className="h-4 w-4" />
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="opacity-70 hover:opacity-100"
+                  onClick={() => {
+                    if (textareaRef.current) {
+                      const start = textareaRef.current.selectionStart;
+                      const end = textareaRef.current.selectionEnd;
+                      const selectedText = content.substring(start, end);
+                      
+                      const textBefore = content.substring(0, start);
+                      const textAfter = content.substring(end);
+                      const newContent = textBefore + "<u>" + (selectedText || "underlined text") + "</u>" + textAfter;
+                      setContent(newContent);
+                      
+                      // Select the text between the underline tags
+                      setTimeout(() => {
+                        if (textareaRef.current) {
+                          const newStart = start + 3;
+                          const newEnd = newStart + (selectedText.length || "underlined text".length);
+                          textareaRef.current.focus();
+                          textareaRef.current.setSelectionRange(newStart, newEnd);
+                        }
+                      }, 0);
+                    }
+                  }}
+                  title="Underline text"
+                >
+                  <Underline className="h-4 w-4" />
+                </Button>
+              </div>
               
               <Input
                 ref={inlineFileInputRef}
@@ -875,7 +1030,7 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
                 onClick={handleTextareaSelect}
                 onKeyUp={handleTextareaSelect}
                 onFocus={handleTextareaSelect}
-                className="h-[calc(100vh-250px)] border-none shadow-none focus-visible:ring-0 px-0 resize-none pr-10"
+                className="h-[calc(100vh-250px)] border-none shadow-none focus-visible:ring-0 px-0 resize-none pr-12"
                 readOnly={isDemo}
               />
             </TabsContent>
@@ -883,19 +1038,14 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
           
           <TabsContent value="preview" className="mt-0">
             <div className="prose prose-sm dark:prose-invert max-w-none h-[calc(100vh-250px)] overflow-y-auto p-4 border rounded-md bg-background">
-              {renderMarkdownWithImages(content, !isDemo ? handleDeleteInlineImage : undefined).map((segment, index) => {
-                if (segment.type === 'text') {
-                  return segment.content.split('\n').map((paragraph, pIndex) => (
-                    <p key={`${index}-${pIndex}`} className="my-2">
-                      {paragraph || <br />}
-                    </p>
-                  ));
-                } else {
+              <ReactMarkdown components={{
+                img: ({node, ...props}) => {
+                  // Return the image wrapper without being wrapped in a paragraph
                   return (
-                    <div key={index} className="my-4 relative aspect-auto max-w-full group">
+                    <div className="my-4 relative aspect-auto max-w-full group">
                       <img
-                        src={segment.src}
-                        alt={segment.alt}
+                        src={props.src}
+                        alt={props.alt || ""}
                         className="rounded-md max-w-full max-h-[300px] object-contain"
                       />
                       {!isDemo && (
@@ -903,7 +1053,7 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
                           variant="destructive"
                           size="icon"
                           className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity h-7 w-7 z-10"
-                          onClick={() => handleDeleteInlineImage(segment.src, segment.fullMatch)}
+                          onClick={() => handleDeleteInlineImage(props.src || "", `![${props.alt || ""}](${props.src})`)}
                           title="Delete Image"
                         >
                           <X className="h-4 w-4" />
@@ -911,8 +1061,50 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
                       )}
                     </div>
                   );
-                }
-              })}
+                },
+                p: ({node, children, ...props}) => {
+                  // Check if this paragraph contains only an image
+                  const hasOnlyImage = 
+                    React.Children.count(children) === 1 &&
+                    React.Children.toArray(children).some(
+                      child => React.isValidElement(child) && child.type === 'img'
+                    );
+
+                  // If it only contains an image, don't wrap it in a paragraph
+                  if (hasOnlyImage) {
+                    return <>{children}</>;
+                  }
+                  
+                  // Otherwise, render a normal paragraph
+                  return <p className="my-2" {...props}>{children}</p>;
+                },
+                a: ({node, ...props}) => (
+                  <a 
+                    href={props.href} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-blue-500 hover:underline"
+                  >
+                    {props.children}
+                  </a>
+                ),
+                h1: ({node, ...props}) => <h1 className="text-2xl font-bold my-4" {...props} />,
+                h2: ({node, ...props}) => <h2 className="text-xl font-bold my-3" {...props} />,
+                h3: ({node, ...props}) => <h3 className="text-lg font-bold my-3" {...props} />,
+                h4: ({node, ...props}) => <h4 className="text-base font-bold my-2" {...props} />,
+                h5: ({node, ...props}) => <h5 className="text-sm font-bold my-2" {...props} />,
+                h6: ({node, ...props}) => <h6 className="text-xs font-bold my-2" {...props} />,
+                ul: ({node, ...props}) => <ul className="list-disc ml-6 my-2" {...props} />,
+                ol: ({node, ...props}) => <ol className="list-decimal ml-6 my-2" {...props} />,
+                li: ({node, ...props}) => <li className="my-1" {...props} />,
+                blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-gray-300 pl-4 my-4 italic" {...props} />,
+                code: ({node, ...props}) => <code className="bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded" {...props} />,
+                pre: ({node, ...props}) => <pre className="bg-gray-100 dark:bg-gray-800 p-4 rounded my-4 overflow-auto" {...props} />,
+                // Add custom renderer for the HTML u tag
+                u: ({node, ...props}) => <span className="underline" {...props} />
+              }}>
+                {content}
+              </ReactMarkdown>
             </div>
           </TabsContent>
         </Tabs>
