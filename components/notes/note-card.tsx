@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { useRouter } from "next/navigation"
 import type { Note } from "@/lib/types/database.types"
-import { formatDate, truncateText } from "@/lib/utils"
+import { formatDate, truncateText, isDemoUser } from "@/lib/utils"
 import { useNotes } from "@/lib/hooks/use-notes"
 import { useIsMobile } from "@/components/ui/use-mobile"
 import { Button } from "@/components/ui/button"
@@ -30,8 +31,12 @@ import {
   Archive, 
   MoreVertical, 
   Trash, 
-  FileText 
+  FileText, 
+  Image as ImageIcon,
+  Eye
 } from "lucide-react"
+import { useAuth } from "@/components/providers/auth-provider"
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
 
 interface NoteCardProps {
   note: Note
@@ -40,6 +45,8 @@ interface NoteCardProps {
 export function NoteCard({ note }: NoteCardProps) {
   const router = useRouter()
   const { deleteNote, archiveNote } = useNotes()
+  const { user } = useAuth() // Get the current user
+  const isDemo = isDemoUser(user) // Check if demo user
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [isHovered, setIsHovered] = useState(false)
   const isMobile = useIsMobile()
@@ -53,8 +60,6 @@ export function NoteCard({ note }: NoteCardProps) {
     await archiveNote.mutateAsync(note.id)
   }
 
-  // Determine card content based on what's available
-  // Show more content on hover for desktop, but keep it shorter on mobile regardless
   const displayContent = note.content 
     ? truncateText(note.content, isHovered && !isMobile ? 300 : 150) 
     : "No content"
@@ -62,13 +67,29 @@ export function NoteCard({ note }: NoteCardProps) {
   return (
     <>
       <Card 
-        className={`relative flex h-full flex-col transition-all duration-300 ${
+        className={`relative flex h-full flex-col transition-all duration-300 overflow-hidden ${
           isHovered && !isMobile ? 'scale-[1.03] shadow-lg z-10' : 'hover:shadow-md'
         }`}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
-        <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
+        {note.image_url && (
+          <div className="relative w-full h-32">
+            <Image 
+              src={note.image_url}
+              alt={note.title || "Note image"}
+              layout="fill"
+              objectFit="cover"
+              className="transition-transform duration-300 group-hover:scale-105"
+              onError={(e) => {
+                console.warn(`Failed to load image for note ${note.id}: ${note.image_url}`);
+                (e.target as HTMLImageElement).style.display = 'none';
+              }}
+            />
+          </div>
+        )}
+
+        <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2 pt-4">
           <CardTitle className="text-lg font-medium">
             <Link href={`/dashboard/note/${note.id}`} className="hover:underline">
               {truncateText(note.title, 50)}
@@ -76,46 +97,69 @@ export function NoteCard({ note }: NoteCardProps) {
           </CardTitle>
           <div className="flex items-center gap-1">
             {note.summary && (
-              <span className="text-blue-500">
-                <FileText className="h-3.5 w-3.5" />
-              </span>
+              <HoverCard>
+                <HoverCardTrigger asChild>
+                  <span className="text-blue-500 cursor-pointer">
+                    <FileText className="h-3.5 w-3.5" />
+                  </span>
+                </HoverCardTrigger>
+                <HoverCardContent className="w-80">
+                  <div className="flex flex-col gap-2">
+                    <h4 className="font-medium text-sm">Summary</h4>
+                    <p className="text-xs text-muted-foreground">{note.summary}</p>
+                  </div>
+                </HoverCardContent>
+              </HoverCard>
             )}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="h-8 w-8 p-0">
-                  <span className="sr-only">Open menu</span>
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => router.push(`/dashboard/note/${note.id}`)}>Edit</DropdownMenuItem>
-                <DropdownMenuItem onClick={handleArchive}>
-                  <Archive className="mr-2 h-4 w-4" />
-                  Archive
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  className="text-destructive focus:text-destructive"
-                  onClick={() => setShowDeleteDialog(true)}
-                >
-                  <Trash className="mr-2 h-4 w-4" />
-                  Delete
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {!isDemo ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="h-8 w-8 p-0">
+                    <span className="sr-only">Open menu</span>
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => router.push(`/dashboard/note/${note.id}`)}>Edit</DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleArchive}>
+                    <Archive className="mr-2 h-4 w-4" />
+                    Archive
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onClick={() => setShowDeleteDialog(true)}
+                  >
+                    <Trash className="mr-2 h-4 w-4" />
+                    Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="h-8 p-2 flex gap-1 items-center text-xs"
+                onClick={() => router.push(`/dashboard/note/${note.id}`)}
+              >
+                <Eye className="h-3.5 w-3.5" />
+                View
+              </Button>
+            )}
           </div>
         </CardHeader>
-        <CardContent className="flex-1">
-          <p className="text-sm text-muted-foreground">{displayContent}</p>
+        <CardContent className="flex-1 overflow-hidden">
+          <p className="text-sm text-muted-foreground break-words">
+            {displayContent}
+          </p>
           
-          {/* Summary section that appears on hover for desktop, always visible on mobile */}
           {(isHovered || isMobile) && note.summary && (
             <div className="mt-4 border-t pt-3 animate-fadeIn">
               <div className="flex items-center gap-2 mb-1">
                 <FileText className="h-4 w-4 text-blue-500" />
                 <h4 className="font-medium text-sm">Summary</h4>
               </div>
-              <p className="text-xs text-muted-foreground">{note.summary}</p>
+              <p className="text-xs text-muted-foreground break-words">{note.summary}</p>
             </div>
           )}
         </CardContent>

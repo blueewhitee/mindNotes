@@ -13,6 +13,7 @@ export interface Database {
           is_archived: boolean
           created_at: string
           updated_at: string
+          image_url: string | null
         }
         Insert: {
           id?: string
@@ -23,6 +24,7 @@ export interface Database {
           is_archived?: boolean
           created_at?: string
           updated_at?: string
+          image_url?: string | null
         }
         Update: {
           id?: string
@@ -33,6 +35,7 @@ export interface Database {
           is_archived?: boolean
           created_at?: string
           updated_at?: string
+          image_url?: string | null
         }
       }
       profiles: {
