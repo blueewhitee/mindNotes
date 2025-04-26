@@ -22,36 +22,30 @@ export function AuthForm() {
   const [activeTab, setActiveTab] = useState("signin")
 
   useEffect(() => {
-    console.log("Supabase client initialized:", !!supabase)
-    console.log("Auth methods available:", !!supabase?.auth)
+    // Check if Supabase client is properly initialized
+    if (!supabase || !supabase.auth) {
+      console.error("Supabase client or auth methods not available")
+    }
   }, [supabase])
 
   const handleEmailSignIn = async (e: React.FormEvent) => {
     e.preventDefault()
-    console.log("Sign in initiated with email:", email)
     setIsLoading(true)
 
     try {
-      console.log("Calling supabase.auth.signInWithPassword...")
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
 
-      console.log("Sign in response:", { data: { ...data, session: data?.session ? "Session exists" : "No session" }, error })
-
       if (error) {
-        console.error("Login error:", error)
         throw error
       }
 
       // Check if we successfully got a session
       if (!data.session) {
-        console.error("No session returned from signInWithPassword")
         throw new Error("Login failed - no session created")
       }
-
-      console.log("Login successful, session established")
       
       // Wait for the session to be fully established
       await new Promise(resolve => setTimeout(resolve, 500))
@@ -61,10 +55,8 @@ export function AuthForm() {
         description: "You have successfully signed in.",
       })
       
-      // Instead of using router.push first, use replace to avoid state issues
       router.replace("/dashboard")
     } catch (error: any) {
-      console.error("Login error caught:", error)
       toast({
         title: "Sign in failed",
         description: error.message,
@@ -77,10 +69,8 @@ export function AuthForm() {
 
   const handleEmailSignUp = async (e: React.FormEvent) => {
     e.preventDefault()
-    console.log("Sign up form submitted", { email, password })
 
     if (!email || !password) {
-      console.log("Email or password missing")
       toast({
         title: "Missing information",
         description: "Please provide both email and password",
@@ -89,59 +79,62 @@ export function AuthForm() {
       return
     }
 
+    if (password.length < 6) {
+      toast({
+        title: "Password too short",
+        description: "Password must be at least 6 characters long",
+        variant: "destructive",
+      })
+      return
+    }
+
     setIsLoading(true)
 
     try {
-      console.log("About to call Supabase signup...")
-
-      const debugDirectFetch = async () => {
-        try {
-          const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/auth/v1/signup`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "",
-            },
-            body: JSON.stringify({
-              email,
-              password,
-              options: {
-                email_redirect_to: `${window.location.origin}/auth/callback`,
-              },
-            }),
-          })
-
-          console.log("Direct fetch response status:", response.status)
-          const data = await response.json()
-          console.log("Direct fetch response:", data)
-        } catch (error) {
-          console.error("Direct fetch error:", error)
-        }
-      }
-
-      console.log("Calling standard Supabase signup")
-      const response = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
         },
       })
-      console.log("Signup standard response:", response)
 
-      if (response.error) {
-        console.log("Standard signup failed, trying direct fetch")
-        await debugDirectFetch()
-
-        throw response.error
+      if (error) {
+        throw error
       }
 
-      toast({
-        title: "Check your email",
-        description: "We sent you a confirmation link to complete your registration.",
-      })
+      if (data.user && data.user.identities && data.user.identities.length === 0) {
+        throw new Error("Email already registered. Please sign in instead.")
+      }
+      
+      // Check if email confirmation is required
+      const emailConfirmationRequired = 
+        data.user?.identities?.[0]?.identity_data?.email_verified === false ||
+        data.session === null;
+      
+      if (emailConfirmationRequired) {
+        toast({
+          title: "Check your email",
+          description: "We sent you a confirmation link to complete your registration.",
+        })
+        
+        // Clear the form after successful signup
+        setEmail("")
+        setPassword("")
+        // Switch to signin tab
+        setActiveTab("signin")
+      } else {
+        // User is already confirmed and has a session
+        toast({
+          title: "Success",
+          description: "You have successfully signed up.",
+        })
+        
+        // Redirect to dashboard
+        router.replace("/dashboard")
+      }
+      
     } catch (error: any) {
-      console.error("Signup error caught:", error)
       toast({
         title: "Sign up failed",
         description: error.message || "An unexpected error occurred",
@@ -159,7 +152,7 @@ export function AuthForm() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`,
+          redirectTo: `${window.location.origin}/auth/callback`,
         },
       })
 
@@ -173,15 +166,6 @@ export function AuthForm() {
         variant: "destructive",
       })
       setIsLoading(false)
-    }
-  }
-
-  const debugSubmit = (e: React.FormEvent) => {
-    console.log("Form submit triggered", { activeTab })
-    if (activeTab === "signup") {
-      handleEmailSignUp(e)
-    } else {
-      handleEmailSignIn(e)
     }
   }
 
@@ -255,7 +239,7 @@ export function AuthForm() {
             </div>
           </TabsContent>
           <TabsContent value="signup">
-            <form onSubmit={debugSubmit} className="space-y-4">
+            <form onSubmit={handleEmailSignUp} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email-signup">Email</Label>
                 <Input
@@ -278,15 +262,13 @@ export function AuthForm() {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   disabled={isLoading}
+                  minLength={6}
                 />
               </div>
               <Button
                 type="submit"
                 className="w-full"
                 disabled={isLoading}
-                onClick={(e) => {
-                  console.log("Sign Up button clicked")
-                }}
               >
                 {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                 Sign Up
