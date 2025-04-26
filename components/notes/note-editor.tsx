@@ -855,7 +855,7 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
             </TabsContent>
           )}
           
-          <TabsContent value={isDemo ? "preview" : viewMode === "preview" ? "preview" : "edit"} className="mt-0">
+          <TabsContent value="preview" className="mt-0">
             <div className="prose prose-sm dark:prose-invert max-w-none min-h-[300px] p-4 border rounded-md bg-background">
               {renderMarkdownWithImages(content, !isDemo ? handleDeleteInlineImage : undefined).map((segment, index) => {
                 if (segment.type === 'text') {

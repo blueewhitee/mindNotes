@@ -36,6 +36,7 @@ import {
   Eye
 } from "lucide-react"
 import { useAuth } from "@/components/providers/auth-provider"
+import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card"
 
 interface NoteCardProps {
   note: Note
@@ -96,9 +97,19 @@ export function NoteCard({ note }: NoteCardProps) {
           </CardTitle>
           <div className="flex items-center gap-1">
             {note.summary && (
-              <span className="text-blue-500">
-                <FileText className="h-3.5 w-3.5" />
-              </span>
+              <HoverCard>
+                <HoverCardTrigger asChild>
+                  <span className="text-blue-500 cursor-pointer">
+                    <FileText className="h-3.5 w-3.5" />
+                  </span>
+                </HoverCardTrigger>
+                <HoverCardContent className="w-80">
+                  <div className="flex flex-col gap-2">
+                    <h4 className="font-medium text-sm">Summary</h4>
+                    <p className="text-xs text-muted-foreground">{note.summary}</p>
+                  </div>
+                </HoverCardContent>
+              </HoverCard>
             )}
             {!isDemo ? (
               <DropdownMenu>
