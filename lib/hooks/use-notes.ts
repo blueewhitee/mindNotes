@@ -73,7 +73,7 @@ export function useNotes() {
   })
 
   const createNote = useMutation({
-    mutationFn: async ({ title, content }: { title: string; content?: string }) => {
+    mutationFn: async ({ title, content, image_url }: { title: string; content?: string; image_url?: string | null }) => {
       // Extra safety check - wait for auth state to be ready
       if (isAuthLoading) {
         console.log("Auth is still loading, waiting...")
@@ -138,7 +138,8 @@ export function useNotes() {
             user_id: user.id,
             title,
             content: content || "",
-            is_archived: false // Explicitly set default value
+            is_archived: false, // Explicitly set default value
+            image_url: image_url // Add image_url here
           })
           .select()
           .single()
@@ -177,7 +178,13 @@ export function useNotes() {
   })
 
   const updateNote = useMutation({
-    mutationFn: async ({ id, title, content, summary }: { id: string; title?: string; content?: string; summary?: string | null }) => {
+    mutationFn: async ({ id, title, content, summary, image_url }: { 
+      id: string; 
+      title?: string; 
+      content?: string; 
+      summary?: string | null; 
+      image_url?: string | null // Add image_url here
+    }) => {
       // Authentication checks - similar to createNote
       if (isAuthLoading) {
         console.log("Auth is still loading when updating note, waiting...")
@@ -201,7 +208,8 @@ export function useNotes() {
         titleLength: title?.length,
         contentLength: content?.length,
         summaryProvided: summary !== undefined,
-        summaryValue: summary ? `${summary.substring(0, 30)}...` : 'null'
+        summaryValue: summary ? `${summary.substring(0, 30)}...` : 'null',
+        image_url // Log image_url
       })
 
       try {
@@ -217,6 +225,11 @@ export function useNotes() {
         if (summary !== undefined) {
           updateObject.summary = summary
           console.log("Including summary in update:", summary ? `${summary.substring(0, 30)}...` : 'null')
+        }
+
+        // Add image_url to update object if provided
+        if (image_url !== undefined) {
+          updateObject.image_url = image_url
         }
         
         console.log("Final update object keys:", Object.keys(updateObject))
