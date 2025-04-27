@@ -187,9 +187,8 @@ export function DashboardHeader() {
         </div>
       )}
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-        <div className="flex items-center gap-2">
-          <h1 className="text-2xl font-bold">Dashboard</h1>
-          <Tabs value={activeTab} onValueChange={handleTabChange} className="ml-4">
+        <div className="flex items-center">
+          <Tabs value={activeTab} onValueChange={handleTabChange}>
             <TabsList className="transition-all duration-300 ease-in-out">
               <TabsTrigger 
                 value="notes" 

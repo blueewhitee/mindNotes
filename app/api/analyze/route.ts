@@ -19,8 +19,25 @@ const redis = process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_RE
 // Rate limit settings
 const MAX_REQUESTS_PER_USER = 10 // Max requests per hour
 const WINDOW_DURATION = 60 * 60 // 1 hour in seconds
-const MAX_CONTENT_LENGTH = 10000 // Max characters to process
+const MAX_CONTENT_LENGTH = 30000 // Increased from 10000 to 30000 characters
 const MINIMUM_REQUEST_INTERVAL = 10 // Minimum seconds between requests
+
+// Helper function to truncate text while preserving full sentences
+function truncateToCompleteText(text: string, maxLength: number): string {
+  if (text.length <= maxLength) return text;
+  
+  // Find the last period, question mark or exclamation mark within the limit
+  const lastPeriodIndex = Math.max(
+    text.lastIndexOf('.', maxLength),
+    text.lastIndexOf('?', maxLength),
+    text.lastIndexOf('!', maxLength)
+  );
+  
+  // If we found a sentence end, cut there, otherwise just cut at maxLength
+  return lastPeriodIndex > 0 
+    ? text.substring(0, lastPeriodIndex + 1) 
+    : text.substring(0, maxLength);
+}
 
 export async function POST(request: Request) {
   try {
@@ -53,14 +70,14 @@ export async function POST(request: Request) {
       })
     }
 
-    // Check content length
+    // Check if content exceeds maximum length
+    let processedContent = content;
+    let wasTruncated = false;
+    
     if (content.length > MAX_CONTENT_LENGTH) {
-      return new NextResponse(JSON.stringify({ 
-        error: `Content too large. Maximum ${MAX_CONTENT_LENGTH} characters allowed.` 
-      }), {
-        status: 413, // Payload Too Large
-        headers: { "Content-Type": "application/json" },
-      })
+      console.log(`Content length (${content.length}) exceeds maximum (${MAX_CONTENT_LENGTH}). Truncating...`);
+      processedContent = truncateToCompleteText(content, MAX_CONTENT_LENGTH);
+      wasTruncated = true;
     }
 
     // Rate limiting and caching logic
@@ -105,7 +122,7 @@ export async function POST(request: Request) {
       
       // 3. Check cache for existing content summary
       // Create a content hash for lookup (first 100 chars + length is a good balance)
-      const contentHash = Buffer.from(content.substring(0, 100) + content.length.toString()).toString('base64')
+      const contentHash = Buffer.from(processedContent.substring(0, 100) + processedContent.length.toString()).toString('base64')
       const cacheKey = `summary:${contentHash}`
       
       const cachedResult = await redis.get(cacheKey)
@@ -131,17 +148,23 @@ export async function POST(request: Request) {
 
     try {
       // Generate both text summary and graph data using Gemini
-      const summary = await generateSummaryWithGemini(content)
-      const graphData = await generateConceptMapWithGemini(content)
+      const summary = await generateSummaryWithGemini(processedContent);
+      const graphData = await generateConceptMapWithGemini(processedContent);
       
-      const responseData = JSON.stringify({ summary, graphData })
+      const responseData = JSON.stringify({ 
+        summary, 
+        graphData, 
+        wasTruncated,
+        originalLength: content.length,
+        analyzedLength: processedContent.length
+      });
       
       // Store in cache if Redis is available
       if (redis) {
-        const contentHash = Buffer.from(content.substring(0, 100) + content.length.toString()).toString('base64')
-        const cacheKey = `summary:${contentHash}`
+        const contentHash = Buffer.from(processedContent.substring(0, 100) + processedContent.length.toString()).toString('base64');
+        const cacheKey = `summary:${contentHash}`;
         // Cache result for 24 hours
-        await redis.set(cacheKey, responseData, { ex: 24 * 60 * 60 })
+        await redis.set(cacheKey, responseData, { ex: 24 * 60 * 60 });
       }
 
       return new NextResponse(responseData, {
@@ -150,31 +173,34 @@ export async function POST(request: Request) {
           "Content-Type": "application/json",
           "X-Cache": "MISS"
         },
-      })
+      });
     } catch (aiError) {
-      console.error("Error calling Gemini API:", aiError)
+      console.error("Error calling Gemini API:", aiError);
       
       // Fallback to simulated responses if Gemini fails
-      const summary = simulateAISummary(content)
-      const graphData = generateKnowledgeGraph(content)
+      const summary = simulateAISummary(processedContent);
+      const graphData = generateKnowledgeGraph(processedContent);
       
       const responseData = JSON.stringify({ 
         summary, 
         graphData,
+        wasTruncated,
+        originalLength: content.length,
+        analyzedLength: processedContent.length,
         notice: "Using simulated analysis due to API error"
-      })
+      });
       
       return new NextResponse(responseData, {
         status: 200,
         headers: { "Content-Type": "application/json" },
-      })
+      });
     }
   } catch (error) {
-    console.error("Error analyzing content:", error)
+    console.error("Error analyzing content:", error);
     return new NextResponse(JSON.stringify({ error: "Internal server error" }), {
       status: 500,
       headers: { "Content-Type": "application/json" },
-    })
+    });
   }
 }
 
