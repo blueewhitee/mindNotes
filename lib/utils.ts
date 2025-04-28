@@ -5,12 +5,24 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function formatDate(date: string | Date) {
+export function formatDate(date: string | Date | null | undefined) {
+  // Handle null, undefined, or invalid date values
+  if (!date) return "No date";
+  
+  // Try to create a valid date object
+  const dateObj = new Date(date);
+  
+  // Check if date is valid
+  if (isNaN(dateObj.getTime())) {
+    return "Invalid date";
+  }
+  
+  // Return formatted date if valid
   return new Intl.DateTimeFormat("en-US", {
     month: "short",
     day: "numeric",
     year: "numeric",
-  }).format(new Date(date))
+  }).format(dateObj)
 }
 
 export function truncateText(text: string, maxLength: number) {

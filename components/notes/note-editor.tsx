@@ -6,6 +6,7 @@ import Image from "next/image"
 import { useDebounce } from "@/lib/hooks/use-debounce"
 import { useNote, useNotes } from "@/lib/hooks/use-notes"
 import { useAIAssistant } from "@/lib/hooks/use-ai-assistant"
+import { useSemanticSearch } from "@/lib/hooks/use-semantic-search"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -75,6 +76,9 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
     autoSummarize,
     resetAnalysis 
   } = useAIAssistant()
+  
+  // Add the semantic search hook for updating embeddings
+  const { updateNoteEmbedding } = useSemanticSearch()
   
   const fileInputRef = useRef<HTMLInputElement>(null)
   const inlineFileInputRef = useRef<HTMLInputElement>(null)

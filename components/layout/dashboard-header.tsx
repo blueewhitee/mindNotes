@@ -1,12 +1,12 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useRouter, usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { useDebounce } from "@/lib/hooks/use-debounce"
 import { useNotes } from "@/lib/hooks/use-notes"
-import { Plus, Search, User, Loader2, RefreshCw, Bookmark, Info } from "lucide-react"
+import { useSearch } from "@/components/providers/search-provider"
+import { Plus, Search, User, Loader2, RefreshCw, Info, X } from "lucide-react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { useAuth } from "@/components/providers/auth-provider"
@@ -19,8 +19,6 @@ export function DashboardHeader() {
   const router = useRouter()
   const pathname = usePathname()
   const { createNote } = useNotes()
-  const [searchQuery, setSearchQuery] = useState("")
-  const debouncedSearchQuery = useDebounce(searchQuery, 300)
   const [isCreating, setIsCreating] = useState(false)
   const [activeTab, setActiveTab] = useState("notes")
   const [isNavigating, setIsNavigating] = useState(false)
@@ -30,17 +28,54 @@ export function DashboardHeader() {
   const isDemo = isDemoUser(user) // Check if demo user
   const supabase = createClient()
 
+  // Use the search context instead of direct hook
+  const { 
+    searchQuery, 
+    setSearchQuery, 
+    isSearching, 
+    searchError: error,
+    searchType,
+    setSearchType,
+    clearSearch,
+    isSearchActive
+  } = useSearch();
+
+  // Track search input ref for keyboard shortcuts
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
   // Update activeTab based on the current URL path
   // But only if we're not currently navigating programmatically
   useEffect(() => {
     if (!isNavigating) {
       if (pathname.includes("/bookmarks") && activeTab !== "bookmarks") {
         setActiveTab("bookmarks");
+        setSearchType("bookmarks");
       } else if (!pathname.includes("/bookmarks") && activeTab !== "notes") {
         setActiveTab("notes");
+        setSearchType("notes");
       }
     }
-  }, [pathname, activeTab, isNavigating]);
+  }, [pathname, activeTab, isNavigating, setSearchType]);
+
+  // Setup keyboard shortcuts for search
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+K or Cmd+K to focus search
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+      
+      // Escape to clear search
+      if (e.key === 'Escape' && isSearchActive) {
+        clearSearch();
+        searchInputRef.current?.blur();
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isSearchActive, clearSearch]);
 
   // Function to handle tab changes with controlled navigation
   const handleTabChange = (value: string) => {
@@ -48,6 +83,9 @@ export function DashboardHeader() {
     setIsNavigating(true);
     // Then update the tab state immediately
     setActiveTab(value);
+    
+    // Update search type based on active tab
+    setSearchType(value === "notes" ? "notes" : "bookmarks");
     
     // Navigate to the appropriate page
     if (value === "notes") {
@@ -209,12 +247,28 @@ export function DashboardHeader() {
           <div className="relative flex-1">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
+              ref={searchInputRef}
               type="search"
-              placeholder={activeTab === "notes" ? "Search notes..." : "Search bookmarks..."}
+              placeholder={activeTab === "notes" ? "Search notes... (Ctrl+K)" : "Search bookmarks... (Ctrl+K)"}
               className="pl-8"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
+            {isSearching && (
+              <div className="absolute right-2.5 top-2.5">
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              </div>
+            )}
+            {isSearchActive && !isSearching && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute right-1 top-1.5 h-6 w-6 rounded-full"
+                onClick={() => clearSearch()}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
           </div>
           {!isDemo ? (
             <Button 

@@ -1,27 +1,26 @@
+"use client"
+
 import type React from "react";
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { QueryProvider } from "@/components/providers/query-provider";
+import { AuthProvider } from "@/components/providers/auth-provider";
+import { SearchProvider } from "@/components/providers/search-provider";
 
 export const dynamic = 'force-dynamic';
 
-export default async function DashboardLayout({
+export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const supabase = await createClient();
-
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  if (!session) {
-    redirect("/login");
-  }
-
   return (
-    <div className="flex min-h-screen flex-col">
-      <main className="flex-1">{children}</main>
-    </div>
+    <AuthProvider>
+      <QueryProvider>
+        <SearchProvider>
+          <div className="flex min-h-screen flex-col">
+            <main className="flex-1">{children}</main>
+          </div>
+        </SearchProvider>
+      </QueryProvider>
+    </AuthProvider>
   );
 }
