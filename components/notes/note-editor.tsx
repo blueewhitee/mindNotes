@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
-import { ArrowLeft, Loader2, Sparkles, CheckCircle, FileText, X, ImagePlus, Eye, Edit, Info, ChevronRight, ChevronDown, Heading2, Bold, Italic, Link, Underline, Maximize, Minimize } from "lucide-react"
+import { ArrowLeft, Loader2, Sparkles, CheckCircle, FileText, X, ImagePlus, Eye, Edit, Info, ChevronRight, ChevronDown, Heading2, Bold, Italic, Link, Underline, Maximize, Minimize, List, ListOrdered } from "lucide-react"
 import { toast } from "@/components/ui/use-toast"
 import { ConceptMap } from "@/components/notes/concept-map"
 import { createClient } from "@/lib/supabase/client"
@@ -928,6 +928,98 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
                   >
                     <Link className="h-4 w-4" />
                   </Button>
+
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="opacity-70 hover:opacity-100"
+                    onClick={() => {
+                      if (textareaRef.current) {
+                        const start = textareaRef.current.selectionStart;
+                        const end = textareaRef.current.selectionEnd;
+                        const selectedText = content.substring(start, end);
+                        
+                        // Split the selected text by lines if any
+                        const lines = selectedText ? selectedText.split('\n') : ["List item"];
+                        
+                        // Add bullet points to each line
+                        const bulletedLines = lines.map(line => `- ${line}`).join('\n');
+                        
+                        const textBefore = content.substring(0, start);
+                        const textAfter = content.substring(end);
+                        
+                        // Add a newline before if not at the beginning of a line
+                        const needsNewlineBefore = start > 0 && content[start-1] !== '\n';
+                        const newContent = textBefore + 
+                          (needsNewlineBefore ? '\n' : '') + 
+                          bulletedLines + 
+                          '\n' + 
+                          textAfter;
+                          
+                        setContent(newContent);
+                        
+                        // Position cursor at the end of the list
+                        setTimeout(() => {
+                          if (textareaRef.current) {
+                            const newPos = start + 
+                              (needsNewlineBefore ? 1 : 0) + 
+                              bulletedLines.length + 1;
+                            textareaRef.current.focus();
+                            textareaRef.current.setSelectionRange(newPos, newPos);
+                          }
+                        }, 0);
+                      }
+                    }}
+                    title="Bulleted list"
+                  >
+                    <List className="h-4 w-4" />
+                  </Button>
+
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="opacity-70 hover:opacity-100"
+                    onClick={() => {
+                      if (textareaRef.current) {
+                        const start = textareaRef.current.selectionStart;
+                        const end = textareaRef.current.selectionEnd;
+                        const selectedText = content.substring(start, end);
+                        
+                        // Split the selected text by lines if any
+                        const lines = selectedText ? selectedText.split('\n') : ["Numbered item"];
+                        
+                        // Add numbers to each line
+                        const numberedLines = lines.map((line, index) => `${index + 1}. ${line}`).join('\n');
+                        
+                        const textBefore = content.substring(0, start);
+                        const textAfter = content.substring(end);
+                        
+                        // Add a newline before if not at the beginning of a line
+                        const needsNewlineBefore = start > 0 && content[start-1] !== '\n';
+                        const newContent = textBefore + 
+                          (needsNewlineBefore ? '\n' : '') + 
+                          numberedLines + 
+                          '\n' + 
+                          textAfter;
+                          
+                        setContent(newContent);
+                        
+                        // Position cursor at the end of the list
+                        setTimeout(() => {
+                          if (textareaRef.current) {
+                            const newPos = start + 
+                              (needsNewlineBefore ? 1 : 0) + 
+                              numberedLines.length + 1;
+                            textareaRef.current.focus();
+                            textareaRef.current.setSelectionRange(newPos, newPos);
+                          }
+                        }, 0);
+                      }
+                    }}
+                    title="Numbered list"
+                  >
+                    <ListOrdered className="h-4 w-4" />
+                  </Button>
                 </div>
                 
                 <Textarea
@@ -1309,26 +1401,40 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
                           const end = textareaRef.current.selectionEnd;
                           const selectedText = content.substring(start, end);
                           
+                          // Split the selected text by lines if any
+                          const lines = selectedText ? selectedText.split('\n') : ["List item"];
+                          
+                          // Add bullet points to each line
+                          const bulletedLines = lines.map(line => `- ${line}`).join('\n');
+                          
                           const textBefore = content.substring(0, start);
                           const textAfter = content.substring(end);
-                          const newContent = textBefore + "[" + (selectedText || "link text") + "](https://example.com)" + textAfter;
+                          
+                          // Add a newline before if not at the beginning of a line
+                          const needsNewlineBefore = start > 0 && content[start-1] !== '\n';
+                          const newContent = textBefore + 
+                            (needsNewlineBefore ? '\n' : '') + 
+                            bulletedLines + 
+                            '\n' + 
+                            textAfter;
+                            
                           setContent(newContent);
                           
-                          // Select the URL for easy replacement
+                          // Position cursor at the end of the list
                           setTimeout(() => {
                             if (textareaRef.current) {
-                              const linkTextLength = selectedText.length || "link text".length;
-                              const newStart = start + linkTextLength + 3; // +3 for "[](", positioning after "]("
-                              const newEnd = newStart + "https://example.com".length;
+                              const newPos = start + 
+                                (needsNewlineBefore ? 1 : 0) + 
+                                bulletedLines.length + 1;
                               textareaRef.current.focus();
-                              textareaRef.current.setSelectionRange(newStart, newEnd);
+                              textareaRef.current.setSelectionRange(newPos, newPos);
                             }
                           }, 0);
                         }
                       }}
-                      title="Insert link"
+                      title="Bulleted list"
                     >
-                      <Link className="h-4 w-4" />
+                      <List className="h-4 w-4" />
                     </Button>
 
                     <Button
@@ -1341,25 +1447,40 @@ export function NoteEditor({ noteId }: NoteEditorProps) {
                           const end = textareaRef.current.selectionEnd;
                           const selectedText = content.substring(start, end);
                           
+                          // Split the selected text by lines if any
+                          const lines = selectedText ? selectedText.split('\n') : ["Numbered item"];
+                          
+                          // Add numbers to each line
+                          const numberedLines = lines.map((line, index) => `${index + 1}. ${line}`).join('\n');
+                          
                           const textBefore = content.substring(0, start);
                           const textAfter = content.substring(end);
-                          const newContent = textBefore + "<u>" + (selectedText || "underlined text") + "</u>" + textAfter;
+                          
+                          // Add a newline before if not at the beginning of a line
+                          const needsNewlineBefore = start > 0 && content[start-1] !== '\n';
+                          const newContent = textBefore + 
+                            (needsNewlineBefore ? '\n' : '') + 
+                            numberedLines + 
+                            '\n' + 
+                            textAfter;
+                            
                           setContent(newContent);
                           
-                          // Select the text between the underline tags
+                          // Position cursor at the end of the list
                           setTimeout(() => {
                             if (textareaRef.current) {
-                              const newStart = start + 3;
-                              const newEnd = newStart + (selectedText.length || "underlined text".length);
+                              const newPos = start + 
+                                (needsNewlineBefore ? 1 : 0) + 
+                                numberedLines.length + 1;
                               textareaRef.current.focus();
-                              textareaRef.current.setSelectionRange(newStart, newEnd);
+                              textareaRef.current.setSelectionRange(newPos, newPos);
                             }
                           }, 0);
                         }
                       }}
-                      title="Underline text"
+                      title="Numbered list"
                     >
-                      <Underline className="h-4 w-4" />
+                      <ListOrdered className="h-4 w-4" />
                     </Button>
                   </div>
                   

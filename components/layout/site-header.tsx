@@ -4,7 +4,6 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
-import { ModeToggle } from "@/components/theme/mode-toggle"
 import { cn } from "@/lib/utils"
 import { Brain } from "lucide-react"
 
@@ -62,7 +61,6 @@ export function SiteHeader() {
                 Sign Out
               </Button>
             )}
-            <ModeToggle />
           </nav>
         </div>
       </div>

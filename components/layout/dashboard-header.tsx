@@ -23,6 +23,7 @@ export function DashboardHeader() {
   const debouncedSearchQuery = useDebounce(searchQuery, 300)
   const [isCreating, setIsCreating] = useState(false)
   const [activeTab, setActiveTab] = useState("notes")
+  const [isNavigating, setIsNavigating] = useState(false)
   
   // Get auth state and refresh function
   const { user, isLoading, refreshAuth } = useAuth()
@@ -30,13 +31,37 @@ export function DashboardHeader() {
   const supabase = createClient()
 
   // Update activeTab based on the current URL path
+  // But only if we're not currently navigating programmatically
   useEffect(() => {
-    if (pathname.includes("/bookmarks")) {
-      setActiveTab("bookmarks")
-    } else {
-      setActiveTab("notes")
+    if (!isNavigating) {
+      if (pathname.includes("/bookmarks") && activeTab !== "bookmarks") {
+        setActiveTab("bookmarks");
+      } else if (!pathname.includes("/bookmarks") && activeTab !== "notes") {
+        setActiveTab("notes");
+      }
     }
-  }, [pathname])
+  }, [pathname, activeTab, isNavigating]);
+
+  // Function to handle tab changes with controlled navigation
+  const handleTabChange = (value: string) => {
+    // First set the navigating flag to prevent useEffect from changing state
+    setIsNavigating(true);
+    // Then update the tab state immediately
+    setActiveTab(value);
+    
+    // Navigate to the appropriate page
+    if (value === "notes") {
+      router.push('/dashboard');
+    } else {
+      router.push('/dashboard/bookmarks');
+    }
+    
+    // Reset the navigating flag after a short delay
+    // This ensures the navigation has time to complete
+    setTimeout(() => {
+      setIsNavigating(false);
+    }, 300);
+  };
 
   const handleCreateNote = async () => {
     if (isCreating) {
@@ -164,10 +189,20 @@ export function DashboardHeader() {
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-2">
           <h1 className="text-2xl font-bold">Dashboard</h1>
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="ml-4">
-            <TabsList>
-              <TabsTrigger value="notes" onClick={() => router.push('/dashboard')}>Notes</TabsTrigger>
-              <TabsTrigger value="bookmarks" onClick={() => router.push('/dashboard/bookmarks')}>Bookmarks</TabsTrigger>
+          <Tabs value={activeTab} onValueChange={handleTabChange} className="ml-4">
+            <TabsList className="transition-all duration-300 ease-in-out">
+              <TabsTrigger 
+                value="notes" 
+                className="transition-all duration-200 ease-in-out data-[state=active]:shadow-sm data-[state=active]:translate-y-[-1px]"
+              >
+                Notes
+              </TabsTrigger>
+              <TabsTrigger 
+                value="bookmarks" 
+                className="transition-all duration-200 ease-in-out data-[state=active]:shadow-sm data-[state=active]:translate-y-[-1px]"
+              >
+                Bookmarks
+              </TabsTrigger>
             </TabsList>
           </Tabs>
         </div>
