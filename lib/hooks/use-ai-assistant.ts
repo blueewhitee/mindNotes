@@ -10,10 +10,17 @@ export function useAIAssistant() {
   const [summary, setSummary] = useState<string | null>(null)
   const [conceptMapData, setConceptMapData] = useState<ConceptMapData | null>(null)
   const [isAutoSummarizing, setIsAutoSummarizing] = useState(false)
+  const [wasTruncated, setWasTruncated] = useState(false)
   const autoSummaryTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // Helper function to make the API call
-  const fetchAnalysis = async (content: string): Promise<{summary: string, graphData?: ConceptMapData}> => {
+  const fetchAnalysis = async (content: string): Promise<{
+    summary: string, 
+    graphData?: ConceptMapData,
+    wasTruncated?: boolean,
+    originalLength?: number,
+    analyzedLength?: number
+  }> => {
     const response = await fetch("/api/analyze", {
       method: "POST",
       headers: {
@@ -21,6 +28,11 @@ export function useAIAssistant() {
       },
       body: JSON.stringify({ content }),
     })
+
+    if (response.status === 413) {
+      // Handle "Content Too Large" error gracefully
+      throw new Error("Content too large for analysis. Try analyzing a smaller section of your note.")
+    }
 
     if (!response.ok) {
       throw new Error("Failed to analyze note")
@@ -43,6 +55,7 @@ export function useAIAssistant() {
     setIsAnalyzing(true)
     setSummary(null)
     setConceptMapData(null)
+    setWasTruncated(false)
 
     try {
       const data = await fetchAnalysis(content)
@@ -52,11 +65,22 @@ export function useAIAssistant() {
       if (data.graphData) {
         setConceptMapData(data.graphData)
       }
+
+      // Handle truncated content
+      if (data.wasTruncated) {
+        setWasTruncated(true)
+        toast({
+          title: "Note partially analyzed",
+          description: `Your note was too long (${data.originalLength} characters). Only the first ${data.analyzedLength} characters were analyzed.`,
+          variant: "warning",
+          duration: 5000,
+        })
+      }
     } catch (error) {
       console.error("Error analyzing note:", error)
       toast({
         title: "Analysis failed",
-        description: "Failed to analyze your note. Please try again later.",
+        description: error instanceof Error ? error.message : "Failed to analyze your note. Please try again later.",
         variant: "destructive",
       })
     } finally {
@@ -77,6 +101,12 @@ export function useAIAssistant() {
       return
     }
 
+    // Don't attempt auto-summarize for very large content
+    if (content.length > 50000) {
+      console.log("Content too large for auto-summarization:", content.length)
+      return
+    }
+
     console.log("Setting up auto-summarize with debounce, content length:", content.length)
 
     // Set a new timeout (debounce for 2 seconds)
@@ -92,9 +122,11 @@ export function useAIAssistant() {
         // Set the summary state - the note-editor component will handle saving
         setSummary(data.summary)
         
-        // IMPORTANT: Removed the direct Supabase call here to avoid race conditions
-        // The summary is now only saved in one place - through the note-editor's
-        // useEffect hook that watches for summary changes
+        // Handle truncated content silently (no toast for auto-summarize)
+        if (data.wasTruncated) {
+          setWasTruncated(true)
+          console.log(`Note truncated for analysis. Original: ${data.originalLength}, Analyzed: ${data.analyzedLength}`)
+        }
         
       } catch (error) {
         console.error("Error auto-summarizing note:", error)
@@ -109,6 +141,7 @@ export function useAIAssistant() {
   const resetAnalysis = () => {
     setSummary(null)
     setConceptMapData(null)
+    setWasTruncated(false)
   }
 
   return {
@@ -116,6 +149,7 @@ export function useAIAssistant() {
     isAutoSummarizing,
     summary,
     conceptMapData,
+    wasTruncated,
     analyzeNote,
     autoSummarize,
     resetAnalysis,
