@@ -9,7 +9,7 @@ MindNotes is a responsive web application that helps users capture, organize, an
 - **Frontend**: Next.js (TypeScript), TailwindCSS, Shadcn UI
 - **Backend**: Supabase (Authentication, Database)
 - **State Management**: React Query
-- **AI Integration**: Groq API (via Next.js API route)
+- **AI Integration**: Groq API (via Next.js API route), Google Gemini AI for semantic search
 - **Deployment**: Vercel compatible
 
 ## Features
@@ -38,6 +38,12 @@ const handleGoogleSignIn = async () => {
 - Archive feature for better organization
 - Real-time saving with debouncing
 
+### Bookmarks Management
+- Save and organize web bookmarks
+- Folder-based organization system
+- Tagging system for better categorization
+- Mark favorites for quick access
+- Rich details with descriptions and metadata
 
 ### AI Summarization
 - Integrates with Groq API for note analysis
@@ -45,6 +51,11 @@ const handleGoogleSignIn = async () => {
 - Visual concept mapping of related ideas
 - Rate limiting and caching for optimal performance
 
+### Semantic Search
+- Advanced search functionality using Google Gemini AI
+- Both text-based and semantic vector search capabilities
+- Efficient caching of embeddings for improved performance
+- Fallback mechanisms for reliability
 
 ### Responsive UI
 - Clean, intuitive design with Shadcn UI components
@@ -71,9 +82,26 @@ The `components/auth/auth-form.tsx` component handles sign-up and login via emai
 
 Notes CRUD operations are managed through React Query hooks in `lib/hooks/use-notes.ts`. The UI for note creation, editing, and viewing is implemented in components like `note-editor.tsx` and `note-card.tsx`.
 
+### Bookmark Management
+
+The bookmarks feature allows users to save and organize web links with a robust folder structure. Implementation includes:
+- Custom folder tree navigation interface with drag-and-drop support
+- Bookmark cards with favicons and metadata
+- Folder CRUD operations in `lib/hooks/use-bookmark-folders.ts`
+- Bookmark CRUD operations in `lib/hooks/use-bookmarks.ts`
+- Optimistic updates for smooth UI interactions
+
 ### AI Summarization
 
 The AI integration is implemented through a secure API route at `app/api/analyze/route.ts`, which interfaces with the Groq API. The frontend interacts with this endpoint via the `useAIAssistant` hook.
+
+### Semantic Search
+
+The semantic search feature uses Google's Gemini AI model (gemini-2.0-flash) to generate embeddings for search queries in `app/api/search/route.ts`. It implements:
+- Text-based search for exact and partial matches
+- Vector-based semantic search for concept matching
+- Efficient caching system to reduce API calls
+- Fallback mechanisms for reliability
 
 ### State Management
 
@@ -86,6 +114,6 @@ This project successfully implements all requirements of the assessment:
 
 - **UI/UX Quality**: Clean, intuitive design with responsive layouts and polished UI components
 - **Code Quality**: Well-structured TypeScript code with proper organization
-- **Integration Skills**: Seamless integration with Supabase and Groq API
+- **Integration Skills**: Seamless integration with Supabase, Groq API, and Google Gemini AI
 - **State Management**: Proper implementation of React Query for efficient data handling
-- **Problem-Solving**: Creative implementation of AI summarization with concept mapping
+- **Problem-Solving**: Creative implementation of AI summarization with concept mapping and advanced semantic search
